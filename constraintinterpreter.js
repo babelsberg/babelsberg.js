@@ -1,39 +1,47 @@
-module('users.timfelgentreff.babelsberg.constraintinterpreter').requires(
-    'users.timfelgentreff.jsinterpreter.Interpreter',
-    'cop.Layers',
-    'users.timfelgentreff.babelsberg.cassowary_ext',
-    'users.timfelgentreff.babelsberg.deltablue_ext',
-    'users.timfelgentreff.babelsberg.csp_ext',
-    'users.timfelgentreff.babelsberg.core_ext',
-    'users.timfelgentreff.babelsberg.src_transform',
-    'users.timfelgentreff.babelsberg.babelsberg-lively',
-    // 'users.timfelgentreff.z3.StrZ3',
-    // 'users.timfelgentreff.z3.CommandLineZ3',
-    'users.timfelgentreff.backtalk.backtalk_ext',
-    'users.timfelgentreff.sutherland.relax_bbb').
-toRun(function() {
+import * as acorn from './jsinterpreter/acorn.js'
+import Interpreter from './jsinterpreter/interpreter.js'
+
+// import { copv2 as cop } from './ContextJS/copv2/Layers.js'
+
+// import * as z3 from './z3.js';
+import Cassowary from './bbb-rhea.js';
+import * as deltablue from '../deltablue/deltablue.js';
+import Relax from '../relax/relax.js';
+import * as backtalk from '../backtalk/backtalk.js';
+
+function recursionGuard(obj, key, func) {
+    if (!obj[key]) {
+        try {
+            obj[key] = true;
+            func();
+        } finally {
+            obj[key] = false;
+        }
+    }
+}
 
 /**
  * The interface to create, maintain and remove constraints.
  * @class Babelsberg
  */
-Object.subclass('Babelsberg', {
+export class Babelsberg {
 
-    initialize: function() {
+    constructor() {
         this.defaultSolvers = [
-            new ClSimplexSolver(),
-            new DBPlanner(),
+            new Cassowary(),
+            new deltablue.Planner(),
             new Relax(),
             // new CommandLineZ3(),
             // new StrZ3(),
-            new BacktalkSolver(),
-            new csp.Solver()];
+            new backtalk.Solver()
+            // new csp.Solver()
+        ];
         this.defaultReevaluationInterval = 1000;
         this.callbacks = [];
         this.ecjit = new EmptyECJIT();
-    },
+    }
 
-    isConstraintObject: true,
+    get isConstraintObject() { return true }
 
     /**
      * Removes the listener on the given property of the given object.
@@ -42,7 +50,7 @@ Object.subclass('Babelsberg', {
      * @param {Object} obj The object whose property should be unconstrained.
      * @param {string} accessor The name of the property to be unconstrained.
      */
-    unconstrain: function(obj, accessor) {
+    unconstrain(obj, accessor) {
         if (!obj) return;
         var cvar = ConstrainedVariable.findConstraintVariableFor(obj, accessor);
         if (!cvar) return;
@@ -74,7 +82,7 @@ Object.subclass('Babelsberg', {
         // recursive unconstrain
         var child = obj[accessor];
         bbb.unconstrainAll(child);
-    },
+    }
 
     /**
      * Removes all listener on the given object.
@@ -82,9 +90,9 @@ Object.subclass('Babelsberg', {
      * @public
      * @param {Object} obj The object whose property should be unconstrained.
      */
-    unconstrainAll: function(obj) {
+    unconstrainAll(obj) {
         if (obj && obj instanceof Object) {
-            Object.keys(obj).each(function(property, index) {
+            Object.keys(obj).forEach(function(property, index) {
                 var cvar = ConstrainedVariable.findConstraintVariableFor(
                     obj,
                     property
@@ -101,7 +109,7 @@ Object.subclass('Babelsberg', {
             });
         }
 
-    },
+    }
 
     /**
      * Some solvers, like Cassowary and DeltaBlue, handle assignments
@@ -118,7 +126,7 @@ Object.subclass('Babelsberg', {
      *    A callback that can be used to assign new values to the given properties.
      * }
      * @example Example usage of bbb.edit
-     * var s = new DBPlanner(),
+     * var s = new deltablue.Planner(),
      *     obj = {int: 42, str: "42"};
      *
      * // Keep the attributes 'str' and 'int' in sync.
@@ -126,7 +134,7 @@ Object.subclass('Babelsberg', {
      *     solver: deltablue,
      *     ctx: {
      *         obj: obj
-     *     }, methods: function() {
+     *     }, methods() {
      *         obj.int.formula([obj.str], function (str) { return parseInt(str); });
      *         obj.str.formula([obj.int], function (int) { return int + ""; })
      *     }
@@ -139,7 +147,7 @@ Object.subclass('Babelsberg', {
      * // Assign 17 as the new value of obj.int. Constraints are solved automatically.
      * callback([17]);
      */
-    edit: function(obj, accessors) {
+    edit(obj, accessors) {
         var extVars = {},
             cVars = {},
             extConstraints = [],
@@ -147,11 +155,11 @@ Object.subclass('Babelsberg', {
             callback = function(newObj) {
                 if (!newObj) { // end-of-edit
                     for (var prop in extVars) {
-                        extVars[prop].each(function(evar) {
+                        extVars[prop].forEach(function(evar) {
                             evar.finishEdit();
                         });
                     }
-                    solvers.each(function(solver) {
+                    solvers.forEach(function(solver) {
                         solver.editConstraints.splice(
                             solver.editConstraints.indexOf(callback), 1);
                     });
@@ -164,7 +172,7 @@ Object.subclass('Babelsberg', {
                         });
                     }
                     solvers.invoke('resolveArray', newEditConstants);
-                    accessors.each(function(a) {
+                    accessors.forEach(function(a) {
                         cVars[a].suggestValue(cVars[a].externalValue);
                         // extVars[a] = extVars[a]; // set the value,
                         // propagates change to other property
@@ -175,7 +183,7 @@ Object.subclass('Babelsberg', {
                 }
             };
 
-        accessors.each(function(accessor) {
+        accessors.forEach(function(accessor) {
             var cvar = ConstrainedVariable.findConstraintVariableFor(obj, accessor);
             if (!cvar) {
                 throw 'Cannot edit ' + obj + '["' + accessor +
@@ -196,12 +204,12 @@ Object.subclass('Babelsberg', {
             cVars[accessor] = cvar;
             extVars[accessor] = evars;
             solvers = solvers.concat(cvar.solvers).uniq();
-            evars.each(function(evar) {
+            evars.forEach(function(evar) {
                 evar.prepareEdit();
             });
         });
 
-        solvers.each(function(solver) {
+        solvers.forEach(function(solver) {
             if (solver.editConstraints === undefined)
                 solver.editConstraints = [];
             solver.editConstraints.push(callback);
@@ -209,7 +217,7 @@ Object.subclass('Babelsberg', {
 
         solvers.invoke('beginEdit');
         return callback;
-    },
+    }
 
     /**
      * Marks the given object as readonly. This functionality is only
@@ -218,7 +226,7 @@ Object.subclass('Babelsberg', {
      * @public
      * @param {Object} obj The object that should not be modified.
      * @example Example usage of bbb.readonly
-     * var s = new ClSimplexSolver(),
+     * var s = new Cassowary(),
      *     pt = {x: 1, y: 2, z: 3};
      *
      * // The x and y coordinate of the point should sum up to its z coordinate.
@@ -231,12 +239,12 @@ Object.subclass('Babelsberg', {
      * // This assignment cannot modify pt.y, but rather changes pt.z.
      * pt.x = 4;
      */
-    readonly: function(obj) {
+    readonly(obj) {
         if (obj.isConstraintObject) {
             obj.setReadonly(true);
         } else {
             if (Constraint.current && Constraint.current.solver) {
-                Properties.own(obj).each(function(ea) {
+                Properties.own(obj).forEach(function(ea) {
                     var cvar = ConstrainedVariable.newConstraintVariableFor(obj, ea);
                     cvar.addToConstraint(Constraint.current);
                     cvar.ensureExternalVariableFor(Constraint.current.solver);
@@ -247,7 +255,7 @@ Object.subclass('Babelsberg', {
             }
         }
         return obj;
-    },
+    }
 
     /**
      * Creates a constraint equivalent to the given function.
@@ -268,7 +276,7 @@ Object.subclass('Babelsberg', {
      *     If true, logs why certain solvers are not used for a constraint.
      * @param {function} func The constraint to be fulfilled.
      */
-    always: function(opts, func) {
+    always(opts, func) {
         var solvers = this.chooseSolvers(opts.solver),
             errors = [];
 
@@ -313,16 +321,16 @@ Object.subclass('Babelsberg', {
         }
         bbb.processCallbacks();
         return constraint;
-    },
+    }
 
-    abandonAllConstraintsExcept: function(constraintToKeep, constraints) {
-        constraints.each(function(each) {
+    abandonAllConstraintsExcept(constraintToKeep, constraints) {
+        constraints.forEach(function(each) {
             if (each !== constraintToKeep && each !== null)
                 each.abandon();
         });
-    },
+    }
 
-    stay: function(opts, func) {
+    stay(opts, func) {
         func.allowTests = (opts.allowTests === true);
         func.allowUnsolvableOperations = (opts.allowUnsolvableOperations === true);
         func.debugging = opts.debugging;
@@ -330,7 +338,7 @@ Object.subclass('Babelsberg', {
         func.varMapping = opts.ctx;
         var solver = (opts.solver || this.defaultSolver),
             c = new Constraint(func, solver);
-        c.constraintvariables.each(function(cv) {
+        c.constraintvariables.forEach(function(cv) {
             try {
                 cv.externalVariables(solver).stay(opts.priority);
             } catch (e) {
@@ -338,7 +346,7 @@ Object.subclass('Babelsberg', {
             }
         }.bind(this));
         return true;
-    },
+    }
 
     /**
      * Creates a constraint equivalent to the given function through
@@ -346,13 +354,13 @@ Object.subclass('Babelsberg', {
      * @function Babelsberg#once
      * @public
      */
-    once: function(opts, func) {
+    once(opts, func) {
         var constraint = this.always(opts, func);
         constraint.disable();
         return constraint;
-    },
+    }
 
-    chooseSolvers: function(optSolver) {
+    chooseSolvers(optSolver) {
         if (optSolver) {
             return [optSolver];
         } else if (this.defaultSolver) {
@@ -363,9 +371,9 @@ Object.subclass('Babelsberg', {
             return [];
             // throw new Error('Must pass a solver, or set defaultSolver.');
         }
-    },
+    }
 
-    filterSolvers: function(solvers, opts, func) {
+    filterSolvers(solvers, opts, func) {
         var result = [];
 
         // FIXME: this global state is ugly
@@ -384,7 +392,7 @@ Object.subclass('Babelsberg', {
             }
         }
 
-        solvers.each(function(solver) {
+        solvers.forEach(function(solver) {
             if (opts.methods && !solver.supportsMethods()) {
                 if (opts.logReasons) {
                     console.log('Ignoring ' + solver.solverName +
@@ -426,17 +434,17 @@ Object.subclass('Babelsberg', {
         delete bbb.seenTypes;
         delete bbb.seenFiniteDomain;
         return result;
-    },
+    }
 
     /**
      * Create a Constraint for opts and func for each of the specified solvers.
      * Return an array of the created Constraints.
      */
-    createEquivalentConstraints: function(solvers, opts, func, errors) {
+    createEquivalentConstraints(solvers, opts, func, errors) {
         var constraints = [];
-        solvers.each(function(solver) {
+        solvers.forEach(function(solver) {
             try {
-                var optsForSolver = Object.clone(opts);
+                var optsForSolver = _.clone(opts);
                 var constraint = solver.always(optsForSolver, func);
                 if (typeof opts.reevaluationInterval === 'number')
                     constraint.reevaluationInterval = opts.reevaluationInterval;
@@ -449,19 +457,19 @@ Object.subclass('Babelsberg', {
             }
         });
         return constraints;
-    },
+    }
 
     /**
      * Choose one of the specified constraints which performs best according to the
      * requirements laid out in opts.
      */
-    chooseConstraint: function(constraints, opts, errors) {
+    chooseConstraint(constraints, opts, errors) {
         if (constraints.length === 1)
             return constraints[0];
         var constraint = null;
         var previouslyEnabledConstraints = [];
         // make sure all constraints are disabled before the comparison
-        constraints.each(function(each) {
+        constraints.forEach(function(each) {
             if (each._enabled)
                 previouslyEnabledConstraints.push(each);
             each.disable();
@@ -521,7 +529,7 @@ Object.subclass('Babelsberg', {
             console.log('Selected best solver: ' + constraint.solver.solverName);
         }
         return constraint;
-    },
+    }
 
     /**
      * Creates a constraint equivalent to the given function through
@@ -529,13 +537,13 @@ Object.subclass('Babelsberg', {
      * @function Babelsberg#once
      * @public
      */
-    once: function(opts, func) {
+    once(opts, func) {
         var constraint = this.always(opts, func);
         constraint.disable();
         return constraint;
-    },
+    }
 
-    reevaluateSolverSelection: function(currentConstraint, updatedConstraintVariable) {
+    reevaluateSolverSelection(currentConstraint, updatedConstraintVariable) {
         var currentSolver = currentConstraint.solver;
         var func = currentConstraint._predicate;
         var opts = currentConstraint.originalOpts;
@@ -555,37 +563,38 @@ Object.subclass('Babelsberg', {
         }
         this.abandonAllConstraintsExcept(currentConstraint, constraints);
         currentConstraint.enable();
-    },
+    }
 
-    addCallback: function(func, context, args) {
+    addCallback(func, context, args) {
         this.callbacks.push({
             func: func,
             context: context,
             args: args || []
         });
-    },
+    }
 
-    processCallbacks: function() {
-        (function() {
+    processCallbacks() {
+        recursionGuard(bbb, 'isProcessingCallbacks', function() {
             while (bbb.callbacks.length > 0) {
                 var cb = bbb.callbacks.shift();
                 cb.func.apply(cb.context, cb.args);
             }
-        }).recursionGuard(bbb, 'isProcessingCallbacks');
-    },
+        })
+    }
 
-    isValueClass: function(variable) {
+    isValueClass(variable) {
         // TODO: add more value classes
         return variable instanceof lively.Point;
     }
-});
-Object.subclass('ClassicECJIT', {
-    initialize: function() {
+}
+
+class ClassicECJIT {
+    initialize() {
         this.actionCounterLimit = 25;
         this.name = 'classic';
         this.countDecayDecrement = 10;
         this.clearState();
-    },
+    }
 
     /**
      * Function used for instrumenting ConstrainedVariable#suggestValue to
@@ -598,7 +607,7 @@ Object.subclass('ClassicECJIT', {
      * @param {Object} value The new value which was suggested.
      * @return {Boolean} whether suggestValue should be terminated or run normally.
      */
-    suggestValueHook: function(cvar, value) {
+    suggestValueHook(cvar, value) {
         if (!(cvar.__uuid__ in this.cvarData)) {
             //console.log("Creating cvarData entry for "+cvar.__uuid__);
             this.cvarData[cvar.__uuid__] = {
@@ -621,14 +630,14 @@ Object.subclass('ClassicECJIT', {
         }
 
         return false;
-    },
+    }
 
     /**
      * Run some computationally intensive instrumentation and maintenance actions
      * regularly but not on every suggestValueHook invocation.
      * @private
      */
-    doAction: function() {
+    doAction() {
         var cvarData = this.cvarData;
         // sort UUIDs descending by the sourceCount of their cvar
         var uuidBySourceCount = Object.keys(this.cvarData).sort(function(a, b) {
@@ -640,7 +649,7 @@ Object.subclass('ClassicECJIT', {
         var newCVar = this.cvarData[uuidBySourceCount[0]]['cvar'];
         if (!this.currentEdit) {
             var abort = false;
-            newCVar.solvers.each(function(solver) {
+            newCVar.solvers.forEach(function(solver) {
                 if (solver.editConstraints !== undefined) {
                     if (solver.editConstraints.length > 0) abort = true;
                 }
@@ -671,33 +680,33 @@ Object.subclass('ClassicECJIT', {
             console.log('Purging cvarData entry for ' + cvar.__uuid__);
             delete this.cvarData[cvar.__uuid__];
         }, this);
-    },
+    }
 
-    deleteEdit: function() {
+    deleteEdit() {
         if (this.currentEdit) {
             this.currentEdit['cb'](); // end edit constraint
         }
         this.currentEdit = null;
-    },
+    }
 
-    createEditFor: function(cvar) {
+    createEditFor(cvar) {
         //console.log("Enabling edit-callback for "+cvar.__uuid__+" "+cvar.ivarname);
         this.currentEdit = {
             'cvar': cvar,
             'cb': bbb.edit(cvar.obj, [cvar.ivarname])
         };
         //this.printState();
-    },
+    }
 
-    clearState: function() {
+    clearState() {
         this.cvarData = {};
         this.actionCounter = 0;
         if (this.currentEdit) {
             this.deleteEdit();
         }
-    },
+    }
 
-    printState: function() {
+    printState() {
         console.log('=====');
         this.forEachCVarData(function(data) {
             var cvar = data['cvar'];
@@ -709,22 +718,23 @@ Object.subclass('ClassicECJIT', {
                         data['sourceCount'] +
                         ')');
         });
-    },
+    }
 
-    forEachCVarData: function(callback) {
+    forEachCVarData(callback) {
         Object.keys(this.cvarData).forEach(function(key) {
             var value = this.cvarData[key];
             callback.bind(this)(value);
         }, this);
     }
-});
-Object.subclass('AbstractECJIT', {
+}
+
+class AbstractECJIT {
     /**
      * Run some computationally intensive instrumentation and maintenance actions
      * regularly but not on every suggestValueHook invocation.
      * @private
      */
-    doAction: function() {
+    doAction() {
         var cvarData = this.cvarData;
         // sort UUIDs descending by the sourceCount of their cvar
         var uuidBySourceCount = Object.keys(this.cvarData).sort(function(a, b) {
@@ -736,7 +746,7 @@ Object.subclass('AbstractECJIT', {
         var newCVar = this.cvarData[uuidBySourceCount[0]]['cvar'];
         if (!this.currentEdit) {
             var abort = false;
-            newCVar.solvers.each(function(solver) {
+            newCVar.solvers.forEach(function(solver) {
                 if (solver.editConstraints !== undefined) {
                     if (solver.editConstraints.length > 0) abort = true;
                 }
@@ -767,34 +777,34 @@ Object.subclass('AbstractECJIT', {
             console.log('Purging cvarData entry for ' + cvar.__uuid__);
             delete this.cvarData[cvar.__uuid__];
         }, this);
-    },
+    }
 
-    deleteEdit: function() {
+    deleteEdit() {
         if (this.currentEdit) {
             //console.log("Disable edit-callback for "+this.currentEdit['cvar'].__uuid__);
             this.currentEdit['cb'](); // end edit constraint
         }
         this.currentEdit = null;
-    },
+    }
 
-    createEditFor: function(cvar) {
+    createEditFor(cvar) {
         //console.log("Enabling edit-callback for "+cvar.__uuid__+" "+cvar.ivarname);
         this.currentEdit = {
             'cvar': cvar,
             'cb': bbb.edit(cvar.obj, [cvar.ivarname])
         };
         //this.printState();
-    },
+    }
 
-    clearState: function() {
+    clearState() {
         this.cvarData = {};
         this.actionCounter = 0;
         if (this.currentEdit) {
             this.deleteEdit();
         }
-    },
+    }
 
-    printState: function() {
+    printState() {
         console.log('=====');
         this.forEachCVarData(function(data) {
             var cvar = data['cvar'];
@@ -802,25 +812,26 @@ Object.subclass('AbstractECJIT', {
                         cvar.ivarname + ', count:' + data['count'] +
                         ', sourceCount:' + data['sourceCount'] + ')');
         });
-    },
+    }
 
-    forEachCVarData: function(callback) {
+    forEachCVarData(callback) {
         Object.keys(this.cvarData).forEach(function(key) {
             var value = this.cvarData[key];
             callback.bind(this)(value);
         }, this);
     }
-});
-AbstractECJIT.subclass('MultiplicativeAdaptiveECJIT', {
-    name: 'mul',
+}
 
-    initialize: function() {
+class MultiplicativeAdaptiveECJIT extends AbstractECJIT {
+    get name() { return 'mul' }
+
+    initialize() {
         this.actionCounterMax = 64;
         this.actionCounterMin = 4;
         this.currentActionLimit = this.actionCounterMin;
         this.countDecayDecrement = 10;
         this.clearState();
-    },
+    }
 
     /**
      * Function used for instrumenting ConstrainedVariable#suggestValue to
@@ -833,7 +844,7 @@ AbstractECJIT.subclass('MultiplicativeAdaptiveECJIT', {
      * @param {Object} value The new value which was suggested.
      * @return {Boolean} whether suggestValue should be terminated or run normally.
      */
-    suggestValueHook: function(cvar, value) {
+    suggestValueHook(cvar, value) {
         if (!(cvar.__uuid__ in this.cvarData)) {
             //console.log("Creating cvarData entry for "+cvar.__uuid__);
             this.cvarData[cvar.__uuid__] = {
@@ -867,17 +878,17 @@ AbstractECJIT.subclass('MultiplicativeAdaptiveECJIT', {
 
         return false;
     }
-});
-AbstractECJIT.subclass('AdditiveAdaptiveECJIT', {
-    name: 'add',
+}
+class AdditiveAdaptiveECJIT extends AbstractECJIT {
+    get name() { return 'add' }
 
-    initialize: function() {
+    initialize() {
         this.actionCounterMax = 64;
         this.actionCounterMin = 2;
         this.currentActionLimit = 2 * this.actionCounterMin;
         this.countDecayDecrement = 10;
         this.clearState();
-    },
+    }
 
 
     /**
@@ -891,7 +902,7 @@ AbstractECJIT.subclass('AdditiveAdaptiveECJIT', {
      * @param {Object} value The new value which was suggested.
      * @return {Boolean} whether suggestValue should be terminated or run normally.
      */
-    suggestValueHook: function(cvar, value) {
+    suggestValueHook(cvar, value) {
         if (!(cvar.__uuid__ in this.cvarData)) {
             //console.log("Creating cvarData entry for "+cvar.__uuid__);
             this.cvarData[cvar.__uuid__] = {
@@ -920,13 +931,13 @@ AbstractECJIT.subclass('AdditiveAdaptiveECJIT', {
 
         return false;
     }
-});
-AbstractECJIT.subclass('LastECJIT', {
-    name: 'last',
+}
+class LastECJIT extends AbstractECJIT {
+    get name() { return 'last' }
 
-    initialize: function() {
+    initialize() {
         this.clearState();
-    },
+    }
 
 
     /**
@@ -940,12 +951,12 @@ AbstractECJIT.subclass('LastECJIT', {
      * @param {Object} value The new value which was suggested.
      * @return {Boolean} whether suggestValue should be terminated or run normally.
      */
-    suggestValueHook: function(cvar, value) {
+    suggestValueHook(cvar, value) {
         // should optimize cvar with UUID uuidBySourceCount[0] first, then
         // uuidBySourceCount[1] etc.
         if (!this.currentEdit) {
             var abort = false;
-            cvar.solvers.each(function(solver) {
+            cvar.solvers.forEach(function(solver) {
                 if (solver.editConstraints !== undefined) {
                     if (solver.editConstraints.length > 0) abort = true;
                 }
@@ -965,9 +976,9 @@ AbstractECJIT.subclass('LastECJIT', {
         this.currentEdit['cb']([value]);
         return true;
     }
-});
-Object.subclass('EmptyECJIT', {
-    name: 'empty',
+}
+class EmptyECJIT extends Object {
+    get name() { return 'empty' }
 
     /**
      * Function used for instrumenting ConstrainedVariable#suggestValue to
@@ -980,20 +991,20 @@ Object.subclass('EmptyECJIT', {
      * @param {Object} value The new value which was suggested.
      * @return {Boolean} whether suggestValue should be terminated or run normally.
      */
-    suggestValueHook: function(cvar, value) {
+    suggestValueHook(cvar, value) {
         return false;
-    },
-    clearState: function() {
+    }
+    clearState() {
         // Do nothing. Public interface.
-    },
-    printState: function() {
+    }
+    printState() {
         console.log('==== EmptyECJIT ====');
         console.log(' Nothing to report. ');
     }
-});
+}
 
-Object.subclass('ECJITTests', {
-    benchAll: function() {
+class ECJITTests extends Object {
+    benchAll() {
         var llpad;
         if (!lively.lang || !lively.lang.string) { // during headless tests
             llpad = function(str, n, bool) {
@@ -1071,9 +1082,9 @@ Object.subclass('ECJITTests', {
         }.bind(this));
 
         console.log('====== benchmark done ======');
-    },
+    }
 
-    bench: function(name, iterations, ecjit) {
+    bench(name, iterations, ecjit) {
         var fn = this[name],
             old_ecjit = bbb.ecjit;
 
@@ -1085,11 +1096,11 @@ Object.subclass('ECJITTests', {
 
         bbb.ecjit = old_ecjit;
         return end - start;
-    },
+    }
 
-    dbAddSim: function(iterations) {
+    dbAddSim(iterations) {
         var o = {x: 0, y: 0, z: 0},
-            solver = new DBPlanner();
+            solver = new deltablue.Planner();
 
         bbb.always({solver: solver, ctx: {o: o}}, function() {
             return o.x == o.z - o.y &&
@@ -1101,11 +1112,11 @@ Object.subclass('ECJITTests', {
             o.x = i;
             console.assert(o.x + o.y == o.z);
         }
-    },
+    }
 
-    dbAddSimEdit: function(iterations) {
+    dbAddSimEdit(iterations) {
         var o = {x: 0, y: 0, z: 0},
-            solver = new DBPlanner();
+            solver = new deltablue.Planner();
 
         bbb.always({solver: solver, ctx: {o: o}}, function() {
             return o.x == o.z - o.y &&
@@ -1119,11 +1130,11 @@ Object.subclass('ECJITTests', {
             console.assert(o.x + o.y == o.z);
         }
         cb();
-    },
+    }
 
-    clAddSim: function(iterations) {
+    clAddSim(iterations) {
         var o = {x: 0, y: 0, z: 0},
-            solver = new ClSimplexSolver();
+            solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: {o: o}},
@@ -1133,11 +1144,11 @@ Object.subclass('ECJITTests', {
             o.x = i;
             console.assert(o.x + o.y == o.z);
         }
-    },
+    }
 
-    clAddSimEdit: function(iterations) {
+    clAddSimEdit(iterations) {
         var o = {x: 0, y: 0, z: 0},
-            solver = new ClSimplexSolver();
+            solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: {o: o}},
@@ -1149,9 +1160,9 @@ Object.subclass('ECJITTests', {
             console.assert(o.x + o.y == o.z);
         }
         cb();
-    },
+    }
 
-    clDragSim: function(numIterations) {
+    clDragSim(numIterations) {
         var ctx = {
                 mouse: {location_y: 0},
                 mercury: {top: 0, bottom: 0},
@@ -1160,7 +1171,7 @@ Object.subclass('ECJITTests', {
                 gray: {top: 0, bottom: 0},
                 white: {top: 0, bottom: 0},
                 display: {number: 0}},
-            solver = new ClSimplexSolver();
+            solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: ctx},
@@ -1186,9 +1197,9 @@ Object.subclass('ECJITTests', {
             ctx.mouse.location_y = i;
             console.assert(ctx.mouse.location_y == i);
         }
-    },
+    }
 
-    clDragSimEdit: function(numIterations) {
+    clDragSimEdit(numIterations) {
         var ctx = {
                 mouse: {location_y: 0},
                 mercury: {top: 0, bottom: 0},
@@ -1197,7 +1208,7 @@ Object.subclass('ECJITTests', {
                 gray: {top: 0, bottom: 0},
                 white: {top: 0, bottom: 0},
                 display: {number: 0}},
-            solver = new ClSimplexSolver();
+            solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: ctx},
@@ -1225,16 +1236,16 @@ Object.subclass('ECJITTests', {
             console.assert(ctx.mouse.location_y == i);
         }
         cb();
-    },
+    }
 
-    clDrag2DSimParam: function(numIterations, sheer) {
+    clDrag2DSimParam(numIterations, sheer) {
         var ctx = {
             mouse: {x: 100, y: 100},
             wnd: {w: 100, h: 100},
             comp1: {w: 70, display: 0},
             comp2: {w: 30, display: 0}
         };
-        var solver = new ClSimplexSolver();
+        var solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: ctx},
@@ -1260,16 +1271,16 @@ Object.subclass('ECJITTests', {
                 console.assert(ctx.mouse.y == 100 + i);
             }
         }
-    },
+    }
 
-    clDrag2DSimEditParam: function(numIterations, sheer) {
+    clDrag2DSimEditParam(numIterations, sheer) {
         var ctx = {
             mouse: {x: 100, y: 100},
             wnd: {w: 100, h: 100},
             comp1: {w: 70, display: 0},
             comp2: {w: 30, display: 0}
         };
-        var solver = new ClSimplexSolver();
+        var solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: ctx},
@@ -1292,32 +1303,32 @@ Object.subclass('ECJITTests', {
             console.assert(ctx.mouse.y == Math.floor((100 + i) / sheer) * sheer);
         }
         cb();
-    },
+    }
 
-    clDrag2DSim: function(numIterations) {
+    clDrag2DSim(numIterations) {
         this.clDrag2DSimParam(numIterations, 1);
-    },
+    }
 
-    clDrag2DSimEdit: function(numIterations) {
+    clDrag2DSimEdit(numIterations) {
         this.clDrag2DSimEditParam(numIterations, 1);
-    },
+    }
 
-    clDrag2DSimFastX: function(numIterations) {
+    clDrag2DSimFastX(numIterations) {
         this.clDrag2DSimParam(numIterations, 3);
-    },
+    }
 
-    clDrag2DSimFastXEdit: function(numIterations) {
+    clDrag2DSimFastXEdit(numIterations) {
         this.clDrag2DSimEditParam(numIterations, 3);
-    },
+    }
 
-    clDrag2DSimChangeParam: function(numIterations, numSwitch) {
+    clDrag2DSimChangeParam(numIterations, numSwitch) {
         var ctx = {
             mouse: {x: 100, y: 100},
             wnd: {w: 100, h: 100},
             comp1: {w: 70, display: 0},
             comp2: {w: 30, display: 0}
         };
-        var solver = new ClSimplexSolver();
+        var solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: ctx},
@@ -1343,16 +1354,16 @@ Object.subclass('ECJITTests', {
                 console.assert(ctx.mouse.y == 100 + (i - numSwitch));
             }
         }
-    },
+    }
 
-    clDrag2DSimChangeEditParam: function(numIterations, numSwitch) {
+    clDrag2DSimChangeEditParam(numIterations, numSwitch) {
         var ctx = {
             mouse: {x: 100, y: 100},
             wnd: {w: 100, h: 100},
             comp1: {w: 70, display: 0},
             comp2: {w: 30, display: 0}
         };
-        var solver = new ClSimplexSolver();
+        var solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: ctx},
@@ -1384,32 +1395,32 @@ Object.subclass('ECJITTests', {
             }
         }
         cb();
-    },
+    }
 
-    clDrag2DSimChangeHalf: function(numIterations) {
+    clDrag2DSimChangeHalf(numIterations) {
         this.clDrag2DSimChangeParam(numIterations, numIterations / 2);
-    },
+    }
 
-    clDrag2DSimChangeHalfEdit: function(numIterations) {
+    clDrag2DSimChangeHalfEdit(numIterations) {
         this.clDrag2DSimChangeEditParam(numIterations, numIterations / 2);
-    },
+    }
 
-    clDrag2DSimChangeTenth: function(numIterations) {
+    clDrag2DSimChangeTenth(numIterations) {
         this.clDrag2DSimChangeParam(numIterations, numIterations / 10);
-    },
+    }
 
-    clDrag2DSimChangeTenthEdit: function(numIterations) {
+    clDrag2DSimChangeTenthEdit(numIterations) {
         this.clDrag2DSimChangeEditParam(numIterations, numIterations / 10);
-    },
+    }
 
-    clDrag2DSimFreqChangeParam: function(numIterations, switchFreq) {
+    clDrag2DSimFreqChangeParam(numIterations, switchFreq) {
         var ctx = {
             mouse: {x: 100, y: 100},
             wnd: {w: 100, h: 100},
             comp1: {w: 70, display: 0},
             comp2: {w: 30, display: 0}
         };
-        var solver = new ClSimplexSolver();
+        var solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: ctx},
@@ -1434,16 +1445,16 @@ Object.subclass('ECJITTests', {
                 console.assert(ctx.mouse.y == 100 + i);
             }
         }
-    },
+    }
 
-    clDrag2DSimFreqChangeEditParam: function(numIterations, switchFreq) {
+    clDrag2DSimFreqChangeEditParam(numIterations, switchFreq) {
         var ctx = {
             mouse: {x: 100, y: 100},
             wnd: {w: 100, h: 100},
             comp1: {w: 70, display: 0},
             comp2: {w: 30, display: 0}
         };
-        var solver = new ClSimplexSolver();
+        var solver = new Cassowary();
         solver.setAutosolve(false);
 
         bbb.always({solver: solver, ctx: ctx},
@@ -1470,124 +1481,31 @@ Object.subclass('ECJITTests', {
             }
         }
         cb();
-    },
+    }
 
-    clDrag2DSimFreqChange5: function(numIterations) {
+    clDrag2DSimFreqChange5(numIterations) {
         this.clDrag2DSimChangeParam(numIterations, 5);
-    },
+    }
 
-    clDrag2DSimFreqChange5Edit: function(numIterations) {
+    clDrag2DSimFreqChange5Edit(numIterations) {
         this.clDrag2DSimChangeEditParam(numIterations, 5);
     }
-});Object.extend(Global, {
-    /**
-     * A globally accessible instance of {@link Babelsberg}
-     * @global
-     */
-    bbb: new Babelsberg()
-});
+}
 
-users.timfelgentreff.jsinterpreter.Send.addMethods({
-    get args() {
-        return this._$args || [];
-    },
 
-    set args(value) {
-        this._$args = value;
-    }
-});
-
-cop.create('ConstraintInspectionLayer')
-.refineClass(users.timfelgentreff.jsinterpreter.InterpreterVisitor, {
-    visitGetSlot: function(node) {
-        var obj = this.visit(node.obj),
-            name = this.visit(node.slotName),
-            value = obj[name];
-
-        if (!(node._parent instanceof users.timfelgentreff.jsinterpreter.GetSlot) &&
-            !(node._parent instanceof users.timfelgentreff.jsinterpreter.Send) &&
-            !(node._parent instanceof users.timfelgentreff.jsinterpreter.Call) &&
-            value != undefined && !bbb.isValueClass(value)) {
-            bbb.seenTypes[typeof value] = true;
-        }
-        return value;
-    },
-    visitNumber: function(node) {
-        if (!(node._parent instanceof users.timfelgentreff.jsinterpreter.GetSlot)) {
-            bbb.seenTypes[typeof node.value] = true;
-        }
-        return node.value;
-    },
-    visitString: function(node) {
-        if (!(node._parent instanceof users.timfelgentreff.jsinterpreter.GetSlot)) {
-            bbb.seenTypes[typeof node.value] = true;
-        }
-        return node.value;
-    },
-    visitBinaryOp: function(node) {
-        if (node.name == 'in' &&
-            node.right instanceof users.timfelgentreff.jsinterpreter.ArrayLiteral) {
-            bbb.seenFiniteDomain = true;
-        }
-        cop.proceed(node);
-    },
-    //FIXME: copy&paste from constraintconstructionlayer
-    shouldInterpret: function(frame, func) {
-        if (func.sourceModule ===
-                Global.users.timfelgentreff.babelsberg.constraintinterpreter) {
-            return false;
-        }
-        if (func.declaredClass === 'Babelsberg') {
-            return false;
-        }
-        var nativeClass = lively.Class.isClass(func) && func.superclass === undefined;
-        return (!(this.isNative(func) || nativeClass)) &&
-                 typeof(func.forInterpretation) == 'function';
-    }
-});
-
-cop.create('ConstraintConstructionLayer')
-.refineObject(users.timfelgentreff.jsinterpreter, {
-    get InterpreterVisitor() {
-        return ConstraintInterpreterVisitor;
-    }
-}).refineClass(users.timfelgentreff.jsinterpreter.Send, {
-    asFunction: function(optFunc) {
-        var initializer = optFunc.prototype.initialize.ast().asFunction();
-        initializer.original = optFunc;
-        return initializer;
-    }
-}).refineClass(users.timfelgentreff.jsinterpreter.GetSlot, {
-    set: function(value, frame, interpreter) {
-        var obj = interpreter.visit(this.obj),
-            name = interpreter.visit(this.slotName);
-        if (obj === Global || (obj instanceof lively.Module)) {
-            return obj[name] = value;
-        }
-        if (obj && obj.isConstraintObject) {
-            obj = this.getConstraintObjectValue(obj);
-        }
-
-        obj[name] = value;
-        cvar = ConstrainedVariable.newConstraintVariableFor(obj, name);
-        if (Constraint.current) {
-            cvar.ensureExternalVariableFor(Constraint.current.solver);
-            cvar.addToConstraint(Constraint.current);
-            if (cvar.isSolveable()) {
-                Constraint.current.addPrimitiveConstraint(
-                    cvar.externalVariable.cnEquals(value)
-                );
-            }
-        }
-    }
-});
+/**
+ * A globally accessible instance of {@link Babelsberg}
+ * @global
+ */
+var bbb = new Babelsberg()
+export default bbb;
 
 /**
  * Represents an invariant.
  * @class Constraint
  */
-Object.subclass('Constraint', {
-    initialize: function(predicate, solver) {
+class Constraint extends Object {
+    initialize(predicate, solver) {
         var constraintObject;
         this._enabled = false;
         this._predicate = predicate;
@@ -1611,36 +1529,36 @@ Object.subclass('Constraint', {
             Constraint.current = null;
         }
         this.addPrimitiveConstraint(constraintObject);
-    },
-    addPrimitiveConstraint: function(obj) {
+    }
+    addPrimitiveConstraint(obj) {
         if (typeof(obj) != 'undefined' && !this.constraintobjects.include(obj)) {
             if (!obj.enable) this.haltIfDebugging();
             this.constraintobjects.push(obj);
         }
-    },
-    addConstraintVariable: function(v) {
+    }
+    addConstraintVariable(v) {
         if (v && !this.constraintvariables.include(v)) {
             this.constraintvariables.push(v);
         }
-    },
+    }
     get predicate() {
         return this._predicate;
-    },
+    }
     get allowUnsolvableOperations() {
         this.haltIfDebugging();
         return !!this.predicate.allowUnsolvableOperations;
-    },
-    haltIfDebugging: function() {
+    }
+    haltIfDebugging() {
         if (this.predicate.debugging) debugger;
-    },
+    }
     get allowTests() {
         this.haltIfDebugging();
         return !!this.predicate.allowTests;
-    },
+    }
 
     get priority() {
         return this._priority;
-    },
+    }
 
     set priority(value) {
         var enabled = this._enabled;
@@ -1651,11 +1569,11 @@ Object.subclass('Constraint', {
         if (enabled) {
             this.enable();
         }
-    },
+    }
 
     get value() {
         return this.constraintobjects.last();
-    },
+    }
 
     /**
      * Enables this constraint. This is done automatically after
@@ -1665,17 +1583,17 @@ Object.subclass('Constraint', {
      *                              solvers to be compared
      * @public
      */
-    enable: function(bCompare) {
+    enable(bCompare) {
         if (!this._enabled) {
             Constraint.enabledConstraintsGuard.tick();
-            this.constraintobjects.each(function(ea) {
+            this.constraintobjects.forEach(function(ea) {
                 this.enableConstraintObject(ea);
             }.bind(this));
             if (this.constraintobjects.length === 0) {
                 throw new Error('BUG: No constraintobjects were created.');
             }
             this._enabled = true;
-            this.constraintvariables.each(function(v) {v._resetIsSolveable();});
+            this.constraintvariables.forEach(function(v) {v._resetIsSolveable();});
             var begin = performance.now();
             this.solver.solve();
             var end = performance.now();
@@ -1686,7 +1604,7 @@ Object.subclass('Constraint', {
 
             var changedVariables = 0;
             var variableAssigments = {};
-            this.constraintvariables.each(function(ea) {
+            this.constraintvariables.forEach(function(ea) {
                 var value = ea.getValue();
                 var oldValue = ea.storedValue;
                 if (oldValue !== value) {
@@ -1708,7 +1626,7 @@ Object.subclass('Constraint', {
                 numberOfChangedVariables: changedVariables,
                 assignments: variableAssigments};
             Object.extend(this.comparisonMetrics, {
-               squaredChangeDistance: function() {
+               squaredChangeDistance() {
                    var sumOfSquaredDistances = 0;
                    for (var varname in this.assignments) {
                        var assignment = this.assignments[varname];
@@ -1719,9 +1637,9 @@ Object.subclass('Constraint', {
                }
             });
         }
-    },
+    }
 
-    enableConstraintObject: function(obj, optPriority) {
+    enableConstraintObject(obj, optPriority) {
         if (obj === true) {
             if (this.allowTests) {
                 this.isTest = true;
@@ -1758,7 +1676,7 @@ Object.subclass('Constraint', {
                                       // this gets passed through from the variables
             obj.enable(optPriority || this._priority);
         }
-    },
+    }
 
     /**
      * Disables this constraint. It is not further maintained until
@@ -1766,17 +1684,17 @@ Object.subclass('Constraint', {
      * @function Constraint#disable
      * @public
      */
-    disable: function() {
+    disable() {
         if (this._enabled) {
             Constraint.enabledConstraintsGuard.tick();
-            this.constraintobjects.each(function(ea) {
+            this.constraintobjects.forEach(function(ea) {
                 try {ea.disable()} catch (e) {}
             });
             this._enabled = false;
         }
-    },
+    }
 
-    recalculate: function() {
+    recalculate() {
         if (!this._enabled) return;
         // TODO: Fix this so it uses the split-stay result, i.e. just
         // increase the stay for the newly assigned value
@@ -1798,7 +1716,7 @@ Object.subclass('Constraint', {
         cvars.select(function(ea) {
             // all the cvars that are not in this constraint anymore
             return !this.constraintvariables.include(ea) && ea.isSolveable();
-        }.bind(this)).each(function(ea) {
+        }.bind(this)).forEach(function(ea) {
             return ea.externalVariable.removeStay();
         });
 
@@ -1815,7 +1733,7 @@ Object.subclass('Constraint', {
                 return ea.externalVariable.cnIdentical(ea.getValue());
             });
 
-            assignments.each(function(ea) {
+            assignments.forEach(function(ea) {
                 try {
                     self.enableConstraintObject(ea);
                 } catch (_) {
@@ -1841,7 +1759,7 @@ Object.subclass('Constraint', {
                 assignments.invoke('disable');
             }
         }
-    },
+    }
 
 
     /**
@@ -1849,23 +1767,22 @@ Object.subclass('Constraint', {
      * Causes external variables of related ConstrainedVariables to be detached
      * if they were connected to their solver only via this Constraint.
      */
-    abandon: function() {
-        this.constraintvariables.each(function(eachVar) {
+    abandon() {
+        this.constraintvariables.forEach(function(eachVar) {
             eachVar.abandonConstraint(this);
         }, this);
         // TODO: eject those external variables also from their solvers if possible
         // because the solvers might be put to use somewhere else and should not be
         // bothered with old (possibly duplicated) variables, should they?
-    },
+    }
 
-    resetDefiningSolverOfVariables: function() {
-        this.constraintvariables.each(function(eachVar) {
+    resetDefiningSolverOfVariables() {
+        this.constraintvariables.forEach(function(eachVar) {
             eachVar.resetDefiningSolver();
         });
     }
-});
-Object.extend(Constraint, {
-    set current(p) {
+
+    static set current(p) {
         if (!this._previous) {
             this._previous = [];
         }
@@ -1881,17 +1798,40 @@ Object.extend(Constraint, {
             this._previous.push(this._current);
         }
         this._current = p;
-    },
+    }
 
-    get current() {
+    static get current() {
         return this._current;
-    },
+    }
+}
 
-    enabledConstraintsGuard: new Guard()
-});
+class Guard {
+    constructor() {
+        this.counter = 0;
+        this.lastCall = {};
+        this.cachedResult;
+        return this;
+    }
+    call(id, func) {
+        if (this.counter !== this.lastCall[id]) {
+            this.cachedResult = func();
+            this.lastCall[id] = this.counter;
+        }
+        return this.cachedResult;
+    }
+    tick(arg) {
+        if (arg) {
+            this.counter = arg;
+        } else {
+            this.counter++;
+        }
+    }
+}
 
-Object.subclass('ConstrainedVariable', {
-    initialize: function(obj, ivarname, optParentCVar) {
+Constraint.enabledConstraintsGuard = new Guard();
+
+class ConstrainedVariable extends Object {
+    initialize(obj, ivarname, optParentCVar) {
         this.__uuid__ = Strings.newUUID();
         this.obj = obj;
         this.ivarname = ivarname;
@@ -1908,8 +1848,8 @@ Object.subclass('ConstrainedVariable', {
         this.ensureExternalVariableFor(solver);
 
         this.wrapProperties(obj, solver);
-    },
-    wrapProperties: function(obj, solver) {
+    }
+    wrapProperties(obj, solver) {
         var existingSetter = obj.__lookupSetter__(this.ivarname),
             existingGetter = obj.__lookupGetter__(this.ivarname);
 
@@ -1945,8 +1885,8 @@ Object.subclass('ConstrainedVariable', {
 
         if (newSetter) newSetter.isConstraintAccessor = true;
         if (newGetter) newGetter.isConstraintAccessor = true;
-    },
-    ensureExternalVariableFor: function(solver) {
+    }
+    ensureExternalVariableFor(solver) {
         var eVar = this.externalVariables(solver),
             value = this.obj[this.ivarname];
 
@@ -1956,7 +1896,7 @@ Object.subclass('ConstrainedVariable', {
                 solver.constraintVariableFor(value, this.ivarname, this)
             );
         }
-    },
+    }
 
 
 
@@ -1966,9 +1906,9 @@ Object.subclass('ConstrainedVariable', {
         } else {
             return null;
         }
-    },
+    }
 
-    suggestValue: function(value, source, force) {
+    suggestValue(value, source, force) {
         if (ConstrainedVariable.$$callingSetters) {
             return value;
         } else if (force || value !== this.storedValue) {
@@ -2028,9 +1968,9 @@ Object.subclass('ConstrainedVariable', {
             bbb.processCallbacks();
         }
         return value;
-    },
+    }
 
-    solveForPrimarySolver: function(value, priorValue, solver, source) {
+    solveForPrimarySolver(value, priorValue, solver, source) {
         if (this.externalValue == value) {
             // XXX: The solver already has the right value, but
             // we mustn't just store and return - if there are multiple
@@ -2042,7 +1982,10 @@ Object.subclass('ConstrainedVariable', {
             // return;
         }
         if (this.isSolveable()) {
-            (function() {
+            recursionGuard(
+                ConstrainedVariable.isSuggestingValue,
+                this.__uuid__,
+              (function() {
                 var wasReadonly = false,
                 // recursionGuard per externalVariable?
                 eVar = this.definingExternalVariable;
@@ -2058,27 +2001,24 @@ Object.subclass('ConstrainedVariable', {
                         eVar.setReadonly(wasReadonly);
                     }
                 }
-            }).bind(this).recursionGuard(
-                ConstrainedVariable.isSuggestingValue,
-                this.__uuid__
-            );
+            }).bind(this));
         }
-    },
+    }
 
-    bumpSolverWeight: function(solver, direction) {
+    bumpSolverWeight(solver, direction) {
         if (direction == 'up') {
             solver.weight += 987654321; // XXX Magic Number
         } else {
             solver.weight -= 987654321;
         }
-        this.findTransitiveConnectedVariables().each(function(cvar) {
+        this.findTransitiveConnectedVariables().forEach(function(cvar) {
             cvar.setDownstreamReadonly(direction == 'up');
         });
-    },
+    }
 
-    solveForConnectedVariables: function(value, priorValue, source, force) {
+    solveForConnectedVariables(value, priorValue, source, force) {
         if (force || value !== this.storedValue) {
-            (function() {
+            recursionGuard(this, '$$isStoring', (function() {
                 try {
                     // this.setValue(value);
                     this.updateDownstreamVariables(value);
@@ -2091,11 +2031,11 @@ Object.subclass('ConstrainedVariable', {
                     }
                     throw e; // XXX: Lively checks type, so wrap for top-level
                 }
-            }).bind(this).recursionGuard(this, '$$isStoring');
+            }).bind(this));
         }
-    },
+    }
 
-    findAndOptionallyCallSetters: function(callSetters) {
+    findAndOptionallyCallSetters(callSetters) {
         if (this.isSolveable()) {
             var getterSetterPair = this.findOptionalSetter();
             if (getterSetterPair) {
@@ -2105,11 +2045,11 @@ Object.subclass('ConstrainedVariable', {
             }
         }
         if (callSetters) {
-            this.callSetters.recursionGuard(ConstrainedVariable, '$$callingSetters');
+            recursionGuard(ConstrainedVariable, '$$callingSetters', this.callSetters.bind(this));
         }
-    },
+    }
 
-    addErrorCallback: function(e) {
+    addErrorCallback(e) {
         var catchingConstraint = this._constraints.find(function(constraint) {
             return typeof constraint.onError === 'function';
         });
@@ -2118,12 +2058,12 @@ Object.subclass('ConstrainedVariable', {
         } else {
             throw e;
         }
-    },
+    }
 
-    callSetters: function() {
+    callSetters() {
         var recvs = [],
         setters = [];
-        ConstrainedVariable.$$optionalSetters.each(function(ea) {
+        ConstrainedVariable.$$optionalSetters.forEach(function(ea) {
             var recvIdx = recvs.indexOf(ea.recv);
             if (recvIdx === -1) {
                 recvIdx = recvs.length;
@@ -2139,9 +2079,9 @@ Object.subclass('ConstrainedVariable', {
                 alert(e);
             }
         });
-    },
+    }
 
-    findOptionalSetter: function() {
+    findOptionalSetter() {
         if (this.setterObj) return this.setterObj;
 
         if (this.setter) {
@@ -2150,20 +2090,20 @@ Object.subclass('ConstrainedVariable', {
             this.setterObj = this.parentConstrainedVariable.findOptionalSetter();
         }
         return this.setterObj;
-    },
+    }
 
-    ensureClearSetters: function(callSetters) {
+    ensureClearSetters(callSetters) {
         if (callSetters) {
             ConstrainedVariable.$$optionalSetters = null;
         }
-    },
+    }
 
     get getter() {
         return this.$getter;
-    },
+    }
     get recv() {
         return this.$recv;
-    },
+    }
     set getter(value) {
         this.$getter = value;
         if (this.recv) {
@@ -2172,7 +2112,7 @@ Object.subclass('ConstrainedVariable', {
                 this.setter = setter;
             }
         }
-    },
+    }
     set recv(value) {
         this.$recv = value;
         if (this.getter) {
@@ -2181,8 +2121,8 @@ Object.subclass('ConstrainedVariable', {
                 this.setter = setter;
             }
         }
-    },
-    setDownstreamReadonly: function(bool) {
+    }
+    setDownstreamReadonly(bool) {
         if (bool && !this.$$downstreamReadonlyVars) {
             // flushCaches
             var defVar = this.definingExternalVariable;
@@ -2196,46 +2136,46 @@ Object.subclass('ConstrainedVariable', {
                 }
             }.bind(this));
         } else if (!bool && this.$$downstreamReadonlyVars) {
-            this.$$downstreamReadonlyVars.each(function(eVar) {
+            this.$$downstreamReadonlyVars(function(eVar) {
                 eVar.setReadonly(false);
             }.bind(this));
             this.$$downstreamReadonlyVars = null;
         }
-    },
-    findTransitiveConnectedVariables: function(ary) {
+    }
+    findTransitiveConnectedVariables(ary) {
         return Constraint.enabledConstraintsGuard.call(this.__uuid__, function() {
             return this._findTransitiveConnectedVariables(ary || []);
         }.bind(this));
-    },
-    _findTransitiveConnectedVariables: function(ary) {
+    }
+    _findTransitiveConnectedVariables(ary) {
         // XXX soooo slowwww
         var self = this;
         if (ary.indexOf(this) !== -1) return;
 
         ary.push(this);
-        this._constraints.each(function(c) {
-            return c.constraintvariables.each(function(cvar) {
+        this._constraints(function(c) {
+            return c.constraintvariables(function(cvar) {
                 cvar.findTransitiveConnectedVariables(ary);
             });
         });
         return ary;
-    },
-    updateConnectedVariables: function() {
+    }
+    updateConnectedVariables() {
         // so slow :(
         var self = this;
         this._constraints.collect(function(c) {
             return c.constraintvariables;
-        }).flatten().uniq().each(function(cvar) {
+        }).flatten().uniq()(function(cvar) {
             cvar.suggestValue(cvar.getValue()); // will store and recurse only if needed
         });
-    },
+    }
 
-    updateDownstreamVariables: function(value) {
+    updateDownstreamVariables(value) {
         this.updateDownstreamExternalVariables(value);
         this.updateDownstreamUnsolvableVariables(value);
-    },
+    }
 
-    updateDownstreamExternalVariables: function(value) {
+    updateDownstreamExternalVariables(value) {
         var defVar = this.definingExternalVariable;
         this.eachExternalVariableDo(function(ea) {
             if (ea !== defVar) {
@@ -2245,41 +2185,41 @@ Object.subclass('ConstrainedVariable', {
                 ea.setReadonly(wasReadonly);
             }
         });
-    },
+    }
 
-    updateDownstreamUnsolvableVariables: function(value) {
+    updateDownstreamUnsolvableVariables(value) {
         if (!this.isValueClass()) {
             this.recalculateDownstreamConstraints(value);
         } else {
             this.updateValueClassParts(value);
         }
-    },
+    }
 
-    recalculateDownstreamConstraints: function(value) {
+    recalculateDownstreamConstraints(value) {
         this.setValue(value);
-        this._constraints.each(function(c) {
+        this._constraints(function(c) {
             var eVar = this.externalVariables(c.solver);
             if (!eVar) {
                 c.recalculate();
             }
         }.bind(this));
-    },
+    }
 
-    updateValueClassParts: function(value) {
-        (function() {
+    updateValueClassParts(value) {
+        recursionGuard(this, '$$valueClassUpdate', (function() {
             for (key in this.storedValue[ConstrainedVariable.AttrName]) {
                 var cvar = this.storedValue[ConstrainedVariable.AttrName][key];
                 cvar.suggestValue(value[key]);
             }
-        }).bind(this).recursionGuard(this, '$$valueClassUpdate');
-    },
+        }).bind(this))
+    }
 
-    addToConstraint: function(constraint) {
+    addToConstraint(constraint) {
         if (!this._constraints.include(constraint)) {
             this._constraints.push(constraint);
         }
         constraint.addConstraintVariable(this);
-    },
+    }
     get definingSolver() {
         if (Constraint.current || this._hasMultipleSolvers) {
             // no fast path for variables with multiple solvers for now
@@ -2293,12 +2233,12 @@ Object.subclass('ConstrainedVariable', {
         } else {
             return this._definingSolver;
         }
-    },
+    }
     get definingConstraint() {
         return this._definingConstraint ||
             this._searchDefiningSolverAndConstraint().constraint;
-    },
-    _searchDefiningSolverAndConstraint: function() {
+    }
+    _searchDefiningSolverAndConstraint() {
         var solver = {weight: -1000, fake: true, solverName: '(fake)'};
         var constraint = null;
         var solvers = [];
@@ -2339,11 +2279,11 @@ Object.subclass('ConstrainedVariable', {
         }
 
         return {solver: solver, constraint: constraint};
-    },
+    }
 
-    resetDefiningSolver: function() {
+    resetDefiningSolver() {
         this._definingSolver = null;
-    },
+    }
 
     get solvers() {
         var solvers = [];
@@ -2352,30 +2292,30 @@ Object.subclass('ConstrainedVariable', {
             solvers.push(s);
         });
         return solvers.uniq();
-    },
+    }
     get definingExternalVariable() {
         if (this.definingSolver) {
             return this.externalVariables(this.definingSolver);
         } else {
             return null;
         }
-    },
+    }
 
-    isSolveable: function() {
+    isSolveable() {
         return Constraint.current ? !!this.externalVariable : this._isSolveable;
-    },
+    }
 
-    _resetIsSolveable: function() {
+    _resetIsSolveable() {
         this._isSolveable = !!this.definingExternalVariable;
-    },
+    }
 
-    isValueClass: function() {
+    isValueClass() {
         return !this.isSolveable() && bbb.isValueClass(this.storedValue);
-    },
+    }
 
     get storedValue() {
         return this.obj[this.newIvarname];
-    },
+    }
 
     get externalValue() {
         var value;
@@ -2385,34 +2325,34 @@ Object.subclass('ConstrainedVariable', {
             // catch all here
             return null;
         }
-    },
+    }
 
-    pvtGetExternalValue: function(evar) {
+    pvtGetExternalValue(evar) {
         if (typeof(evar.value) == 'function') {
             return evar.value();
         } else {
             return evar.value;
         }
-    },
+    }
 
-    setValue: function(value) {
+    setValue(value) {
         this.obj[this.newIvarname] = value;
-    },
-    eachExternalVariableDo: function(func) {
+    }
+    eachExternalVariableDo(func) {
         func.bind(this);
         for (var key in this._externalVariables) {
             var eVar = this._externalVariables[key];
             if (eVar) { func(eVar); }
         }
-    },
+    }
 
-    getValue: function() {
+    getValue() {
         if (this.isSolveable() && this.hasEnabledConstraint()) {
             return this.externalValue;
         } else {
             return this.storedValue;
         }
-    },
+    }
 
 
     get externalVariable() {
@@ -2421,8 +2361,8 @@ Object.subclass('ConstrainedVariable', {
         } else {
             return this.definingExternalVariable;
         }
-    },
-    externalVariables: function(solver, value) {
+    }
+    externalVariables(solver, value) {
         if (!solver.__uuid__) {
             solver.__uuid__ = Strings.newUUID();
         }
@@ -2439,13 +2379,13 @@ Object.subclass('ConstrainedVariable', {
             this._externalVariables[solver.__uuid__] = value || null;
             this._resetIsSolveable();
         }
-    },
+    }
 
     /**
      * Removes all external variables which are used only by the specified Constraint.
      * @param {Constraint} abandonedConstraint the Constraint about to be purged
      */
-    abandonConstraint: function(abandonedConstraint) {
+    abandonConstraint(abandonedConstraint) {
         // remove abandonedConstraint from this._constraints
         var abandonedIndex = this._constraints.indexOf(abandonedConstraint);
         if (abandonedIndex !== -1)
@@ -2463,23 +2403,61 @@ Object.subclass('ConstrainedVariable', {
                 return !hasSomeOtherConstraintForThisSolver;
             }.bind(this));
         // detach collected external variables
-        externalVariableKeysToRemove.each(function(each) {
+        externalVariableKeysToRemove(function(each) {
             delete this._externalVariables[each];
         }.bind(this));
-    },
+    }
 
-    hasEnabledConstraint: function() {
+    hasEnabledConstraint() {
         return this._constraints.length == 0 ||
             this._constraints.some(function(constraint) {
                 return constraint._enabled;
             });
     }
-});
+    
+    static findConstraintVariableFor(obj, ivarname) {
+        var l = obj[ConstrainedVariable.AttrName];
+        if (l && l[ivarname]) {
+            return l[ivarname];
+        } else {
+            return null;
+        }
+    }
 
-users.timfelgentreff.jsinterpreter.InterpreterVisitor.
-        subclass('ConstraintInterpreterVisitor', {
+    static newConstraintVariableFor(obj, ivarname, cobj) {
+        var cvar = this.findConstraintVariableFor(obj, ivarname);
+        if (!cvar) {
+            cvar = new ConstrainedVariable(obj, ivarname, cobj);
+            obj[ConstrainedVariable.AttrName] = obj[ConstrainedVariable.AttrName] || {};
+            obj[ConstrainedVariable.AttrName][ivarname] = cvar;
+        }
+        return cvar;
+    }
 
-    binaryExpressionMap: {
+    static deleteConstraintVariableFor(obj, ivarname) {
+        var l = obj[ConstrainedVariable.AttrName];
+        if (l && l[ivarname]) {
+            delete l[ivarname];
+        }
+    }
+}
+
+ConstrainedVariable.AttrName = '__constrainedVariables__';
+ConstrainedVariable.ThisAttrName = '__lastConstrainedVariableForThis__';
+ConstrainedVariable.isSuggestingValue = {}
+
+export class ConstraintInterpreter extends Interpreter {
+  
+    static runAndReturn(func, optScope) {
+      var scope = optScope || {};
+      // TODO: scope
+      var i = new ConstraintInterpreter(`var returnValue = (${func.toString()})();`);
+      i.run();
+      return i.stateStack[0].scope.properties.returnValue;
+    }
+
+    get binaryExpressionMap() {
+      return {
         // operation: [method, reverseMethod (or undefined)]
         '+': ['plus', 'plus'],
         '-': ['minus'],
@@ -2495,27 +2473,28 @@ users.timfelgentreff.jsinterpreter.InterpreterVisitor.
         '||': ['cnOr', 'cnOr'],
         '!=': ['cnNeq', 'cnNeq'],
         '!==': ['cnNotIdentical', 'cnNotIdentical']
-    },
+      }
+    }
 
-    alternativeExpressionsMapTo: {
+    get alternativeExpressionsMapTo() {
+      return {
         '+': '-',
         '<=': '<',
         '>=': '>',
         '==': '==='
-    },
+      }
+    }
 
     get alternativeExpressionsMap() {
         var map = {};
-        Properties.own(this.alternativeExpressionsMapTo).each(function(ea) {
+        Properties.own(this.alternativeExpressionsMapTo)(function(ea) {
             map[this.alternativeExpressionsMapTo[ea]] = ea;
             map[ea] = this.alternativeExpressionsMapTo[ea];
         }.bind(this));
         return map;
-    },
+    }
 
-
-
-    getConstraintObjectValue: function(o) {
+    getConstraintObjectValue(o) {
         if (o === undefined || !o.isConstraintObject) return o;
         var value = o.value;
         if (typeof(value) == 'function') {
@@ -2523,8 +2502,8 @@ users.timfelgentreff.jsinterpreter.InterpreterVisitor.
         } else {
             return value;
         }
-    },
-    errorIfUnsolvable: function(op, l, r, res) {
+    }
+    errorIfUnsolvable(op, l, r, res) {
         if (typeof(res) == 'undefined') {
             res = r;
             r = undefined;
@@ -2559,61 +2538,72 @@ users.timfelgentreff.jsinterpreter.InterpreterVisitor.
             }
             throw new Error(msg);
         }
-    },
+    }
 
-    visitVariable: function($super, node) {
-        return $super(node);
-    },
+    stepConditionalExpression() {
+        var state = this.stateStack[0];
+        if (!state.test || state.done) return super.stepConditionalExpression();
 
-    visitCond: function($super, node) {
-        var frame = this.currentFrame,
-            condVal = this.visit(node.condExpr);
-        if (condVal && condVal.isConstraintObject) {
-            debugger;
-            var self = this;
-            condVal = this.getConstraintObjectValue(condVal);
-            if (!condVal) {
-                condVal = cop.withoutLayers([ConstraintConstructionLayer], function() {
-                    // XXX: this will cause GetSlot to call $super, so
-                    // we don't get constrainded vars
-                    return self.visit(node.condExpr);
-                });
-                debugger;
-            }
+        // we are not done but have run the test
+        if (state.value.valueOf().isConstraintObject) {
+          // leave the resolved value on the stack
+          state.value = this.getConstraintObjectValue(state.value.valueOf());
+          if (!condVal) {
+            // if the solver did not produce a value
+            cop.withoutLayers([ConstraintConstructionLayer], () => {
+                // We don't want constrained variables from the conditional
+                // in this case, so we put the condition back on the stack
+                // and run it again this time without constraint construction
+                this.stateStack.unshift({node: state.node.test});
+                super.stepConditionalExpression();
+            });
+          }
         }
-        return condVal ? this.visit(node.trueExpr) : this.visit(node.falseExpr);
-    },
+        // we have left a good value on the stack, the superclass deals with the rest
+        return super.stepConditionalExpression();
+    }
 
-    visitUnaryOp: function($super, node) {
-        var frame = this.currentFrame,
-            val = this.visit(node.expr),
-            rVal = this.getConstraintObjectValue(val),
-            msg = 'Unary op `' + node.name + "'";
-
-        switch (node.name) {
+    stepUnaryExpression() {
+        var state = this.stateStack[0];
+        var node = state.node;
+        if (!state.done) {
+          super.stepUnaryExpression();
+        } else {
+          this.stateStack.shift();
+          var value,
+              val = state.value.valueOf(),
+              rVal = this.getConstraintObjectValue(val),
+              msg = 'Unary op `' + node.name + "'";
+          switch (node.operator) {
             case '-':
                 if (val && val.isConstraintObject && val.times) {
-                    return val.times(-1);
+                    value = this.createObject(val.times(-1));
                 } else {
-                    return this.errorIfUnsolvable(msg, val, -rVal);
+                    value = this.createPrimitive(this.errorIfUnsolvable(msg, val, -rVal));
                 }
+                break;
             case '!':
                 if (val && val.isConstraintObject && val.not) {
-                    return val.not();
+                    value = this.createObject(val.not());
                 } else {
-                    return !val;
-                    // return this.errorIfUnsolvable(msg, val, !val);
+                    value = this.createPrimitive(!rVal);
+                    // value = this.createPrimitive(this.errorIfUnsolvable(msg, val, !rVal));
                 }
+                break;
             case '~':
-                return this.errorIfUnsolvable(msg, val, ~rVal);
+                value = this.createPrimitive(this.errorIfUnsolvable(msg, val, ~rVal));
+                break;
             case 'typeof':
-                return this.errorIfUnsolvable(msg, val, typeof(rVal));
+                value = this.createPrimitive(this.errorIfUnsolvable(msg, val, typeof(rVal)));
+                break;
             default:
-              throw new Error('No semantics for unary op ' + node.name);
+              throw new SyntaxError('No semantics for unary op ' + node.name);
+          }
+          this.stateStack[0].value = value;
         }
-    },
+    }
 
-    invoke: function($super, node, recv, func, argValues) {
+    invoke($super, node, recv, func, argValues) {
         if (!func && (!recv || !recv.isConstraintObject)) {
             var error = 'No such method: ' + recv + '.' +
                 (node.property && node.property.value);
@@ -2683,26 +2673,42 @@ users.timfelgentreff.jsinterpreter.InterpreterVisitor.
                 return $super(node, recv, func, argValues);
             });
         }
-    },
-    visitBinaryOp: function($super, node) {
+    }
+
+    stepBinaryExpression() {
+      var state = this.stateStack[0];
+      var node = state.node;
+      if (state.doneLeft && state.doneRight) {
         var prevNode = bbb.currentNode,
             prevInterp = bbb.currentInterpreter;
         bbb.currentInterpreter = this;
         bbb.currentNode = node;
+        var state = this.stateStack[0];
+        var node = state.node;
         try {
-            return this.pvtVisitBinaryOp($super, node);
+            var value = this.pvtStepBinaryExpression(state, node);
+            if (value === undefined) {
+              // pass
+            } else if (value.isConstraintObject) {
+              this.stateStack[0].value = this.createObject(value);
+            } else {
+              this.stateStack[0].value = this.createPrimitive(value);
+            }
         } finally {
             bbb.currentInterpreter = prevInterp;
             bbb.currentNode = prevNode;
         }
-    },
+      } else {
+        super.stepBinaryExpression();
+      }
+    }
 
-    pvtVisitBinaryOp: function(mySuper, node) {
-        var op = node.name;
+    pvtStepBinaryExpression(state, node) {
+        var op = node.operator;
 
         // /* Only supported */ if (node.name.match(/[\*\+\/\-]|==|<=|>=|===|<|>|\|\|/)) {
-        var leftVal = this.visit(node.left),
-            rightVal = this.visit(node.right);
+        var leftVal = state.leftValue.valueOf(),
+            rightVal = state.value.valueOf();
 
         if (leftVal === undefined) leftVal = 0;
         if (rightVal === undefined) rightVal = 0;
@@ -2726,28 +2732,26 @@ users.timfelgentreff.jsinterpreter.InterpreterVisitor.
                     Constraint.current.haltIfDebugging(); // XXX: Sure?
                 }
                 return rightVal;
+            case 'in':
+                if (leftVal.isConstraintObject && leftVal.cnIn) {
+                    return leftVal.cnIn(rightVal);
+                } else if (this.$finiteDomainProperty) {
+                    var lV = this.$finiteDomainProperty;
+                    delete this.$finiteDomainProperty;
+                    if (lV.cnIn) {
+                        return lV.cnIn(rightVal);
+                    }
+                }
+                return this.errorIfUnsolvable(
+                      op, leftVal, rightVal, super.stepBinaryExpression());
             case '-':
                 if (rightVal.isConstraintObject &&
                     rightVal.plus &&
                     Object.isNumber(leftVal)) {
                     return rightVal.plus(-leftVal);
                 } // special case for reversing minus - allowed to fall through to default
-            case 'in':
-                if (node.name != '-') {
-                    if (leftVal.isConstraintObject && leftVal.cnIn) {
-                        return leftVal.cnIn(rightVal);
-                    } else if (this.$finiteDomainProperty) {
-                        var lV = this.$finiteDomainProperty;
-                        delete this.$finiteDomainProperty;
-                        if (lV.cnIn) {
-                            return lV.cnIn(rightVal);
-                        }
-                    } // TODO: rightVal->contains if !leftVal.isConstraintObject
-                // special case for reversing minus - allowed to
-                // fall through to default
-                }
             default:
-                var method = this.binaryExpressionMap[node.name];
+                var method = this.binaryExpressionMap[node.operator];
                 if (method) {
                     if (leftVal && leftVal.isConstraintObject &&
                         typeof(leftVal[method[0]]) == 'function') {
@@ -2760,29 +2764,26 @@ users.timfelgentreff.jsinterpreter.InterpreterVisitor.
                             op,
                             leftVal,
                             rightVal,
-                            eval('rLeftVal ' + node.name + ' rRightVal')
+                            eval('rLeftVal ' + node.operator + ' rRightVal')
                         );
                     }
                 } else {
-                    return this.errorIfUnsolvable(op, leftVal, rightVal, mySuper(node));
+                    return this.errorIfUnsolvable(
+                      op, leftVal, rightVal, super.stepBinaryExpression());
                 }
         }
-    },
+    }
 
-
-    visitGetSlot: function($super, node) {
-        if (cop.currentLayers().indexOf(ConstraintConstructionLayer) === -1) {
-            // XXX: See visitCond
-            return $super(node);
-        }
-        var obj = this.visit(node.obj),
-            name = this.visit(node.slotName),
-            cobj = (obj ? obj[ConstrainedVariable.ThisAttrName] : undefined),
-            cvar;
-        if (obj === Global ||
+    getProperty(obj, name) {
+        if (obj === window /*||
             (obj instanceof lively.Module) /*|| (typeof(obj) == "string")*/) {
-            return obj[name];
+            return super.getProperty(obj, name);
         }
+        
+        var cobj = (obj ? obj[ConstrainedVariable.ThisAttrName] : undefined),
+            cvar;
+        name = name.valueOf();
+        obj = obj.valueOf();
         if (name && name.isConstraintObject) {
             name = this.getConstraintObjectValue(name);
         }
@@ -2840,132 +2841,79 @@ users.timfelgentreff.jsinterpreter.InterpreterVisitor.
             }
             return retval;
         }
-    },
-    visitReturn: function($super, node) {
-        var retVal = $super(node);
-        if (retVal) {
-            var cvar = retVal[ConstrainedVariable.ThisAttrName];
-            if (retVal.isConstraintObject) {
-                cvar = retVal.__cvar__;
-            }
-            if (cvar) {
-                var parentFunc = node.parentFunction();
-                if (parentFunc) {
-                    cvar.getter = parentFunc.name();
-                    cvar.recv = this.currentFrame.mapping['this'];
+    }
+
+    stepReturnStatement() {
+        super.stepReturnStatement();
+        var state = state = this.stateStack[0];
+        if (state.done) {
+            var stateThis = state.funcThis_,
+                func = state.func_,
+                retVal = (state.value || this.UNDEFINED).valueOf();
+            if (retVal) {
+                var cvar = retVal[ConstrainedVariable.ThisAttrName];
+                if (retVal.isConstraintObject) {
+                    cvar = retVal.__cvar__;
+                }
+                if (cvar) {
+                    if (func) {
+                        cvar.getter = func.toString();
+                        cvar.recv = state.funcThis_;
+                    }
                 }
             }
-        }
-        return retVal;
-    },
-
-
-
-    shouldInterpret: function(frame, func) {
-        if (func.sourceModule ===
-                Global.users.timfelgentreff.babelsberg.constraintinterpreter) {
-            return false;
-        }
-        if (func.declaredClass === 'Babelsberg') {
-            return false;
-        }
-        var nativeClass = lively.Class.isClass(func) && func.superclass === undefined;
-        return (!(this.isNative(func) || nativeClass)) &&
-                 typeof(func.forInterpretation) == 'function';
-    },
-    getCurrentScope: function() {
-        var scope = {};
-        var frame = this.currentFrame;
-        while (frame) {
-            if (frame.mapping === Global) { // reached global scope
-                return scope;
-            }
-            for (var key in frame.mapping) {
-                scope[key] = frame.mapping[key];
-            }
-            var mapping = frame.func.getVarMapping();
-            if (mapping) {
-                for (var key in mapping) {
-                    scope[key] = mapping[key];
-                }
-            }
-            frame = frame.getContainingScope();
-        }
-        return scope;
-    },
-    newObject: function($super, func) {
-        if (func.original) {
-            return $super(func.original);
-        } else {
-            return $super(func);
         }
     }
 
-});
+    // shouldInterpret(frame, func) {
+    //     if (func.sourceModule ===
+    //             Global.users.timfelgentreff.babelsberg.constraintinterpreter) {
+    //         return false;
+    //     }
+    //     if (func.declaredClass === 'Babelsberg') {
+    //         return false;
+    //     }
+    //     var nativeClass = lively.Class.isClass(func) && func.superclass === undefined;
+    //     return (!(this.isNative(func) || nativeClass)) &&
+    //             typeof(func.forInterpretation) == 'function';
+    // }
+    // newObject($super, func) {
+    //     if (func.original) {
+    //         return $super(func.original);
+    //     } else {
+    //         return $super(func);
+    //     }
+    // }
 
-ConstrainedVariable.AttrName = '__constrainedVariables__';
-ConstrainedVariable.ThisAttrName = '__lastConstrainedVariableForThis__';
-Object.extend(ConstrainedVariable, {
-    findConstraintVariableFor: function(obj, ivarname) {
-        var l = obj[ConstrainedVariable.AttrName];
-        if (l && l[ivarname]) {
-            return l[ivarname];
-        } else {
-            return null;
-        }
-    },
+}
 
-    newConstraintVariableFor: function(obj, ivarname, cobj) {
-        var cvar = this.findConstraintVariableFor(obj, ivarname);
-        if (!cvar) {
-            cvar = new ConstrainedVariable(obj, ivarname, cobj);
-            obj[ConstrainedVariable.AttrName] = obj[ConstrainedVariable.AttrName] || {};
-            obj[ConstrainedVariable.AttrName][ivarname] = cvar;
-        }
-        return cvar;
-    },
-
-    deleteConstraintVariableFor: function(obj, ivarname) {
-        var l = obj[ConstrainedVariable.AttrName];
-        if (l && l[ivarname]) {
-            delete l[ivarname];
-        }
-    },
-
-    isSuggestingValue: {}
-});
-
-Object.subclass('PrimitiveCObjectRegistry', {});
-Object.extend(PrimitiveCObjectRegistry, {
-    registry: {},
-
+class PrimitiveCObjectRegistry {
     // stores last seen cvars for objects weakly
-    set: function(obj, cobj) {
+    static set(obj, cobj) {
         PrimitiveCObjectRegistry.registry[obj] = cobj;
-    },
-    get: function(obj) {
+    }
+    static get(obj) {
         return PrimitiveCObjectRegistry.registry[obj];
     }
-});
+}
+PrimitiveCObjectRegistry.registry = {};
 
-Number.prototype.__defineGetter__(ConstrainedVariable.ThisAttrName, function() {
-    return PrimitiveCObjectRegistry.get(this + 0 /* coerce back into prim */);
-});
-Number.prototype.__defineGetter__(ConstrainedVariable.AttrName, function() {
-    return {};
-});
-Number.prototype.__defineSetter__(ConstrainedVariable.ThisAttrName, function(v) {
-    PrimitiveCObjectRegistry.set(this + 0 /* coerce back into prim */, v);
-});
-String.prototype.__defineGetter__(ConstrainedVariable.ThisAttrName, function() {
-    return PrimitiveCObjectRegistry.get(this + '' /* coerce back into prim */);
-});
-String.prototype.__defineGetter__(ConstrainedVariable.AttrName, function() {
-    return {};
-});
-String.prototype.__defineSetter__(ConstrainedVariable.ThisAttrName, function(v) {
-    PrimitiveCObjectRegistry.set(this + '' /* coerce back into prim */, v);
-});
+// Number.prototype.__defineGetter__(ConstrainedVariable.ThisAttrName, function() {
+//     return PrimitiveCObjectRegistry.get(this + 0 /* coerce back into prim */);
+// }
+// Number.prototype.__defineGetter__(ConstrainedVariable.AttrName, function() {
+//     return {};
+// }
+// Number.prototype.__defineSetter__(ConstrainedVariable.ThisAttrName, function(v) {
+//     PrimitiveCObjectRegistry.set(this + 0 /* coerce back into prim */, v);
+// }
+// String.prototype.__defineGetter__(ConstrainedVariable.ThisAttrName, function() {
+//     return PrimitiveCObjectRegistry.get(this + '' /* coerce back into prim */);
+// }
+// String.prototype.__defineGetter__(ConstrainedVariable.AttrName, function() {
+//     return {};
+// }
+// String.prototype.__defineSetter__(ConstrainedVariable.ThisAttrName, function(v) {
+//     PrimitiveCObjectRegistry.set(this + '' /* coerce back into prim */, v);
+// }
 
-
-});
