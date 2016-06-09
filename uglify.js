@@ -1,3 +1,5 @@
+var Global= {};
+
 (function(exports, global) {
     global["UglifyJS"] = exports;
     /***********************************************************************
@@ -6817,5 +6819,8 @@
     exports["Compressor"] = Compressor;
     exports["SourceMap"] = SourceMap;
 })({}, function() {
-    return this;
+    return Global;
 }());
+
+var UglifyJS = Global.UglifyJS;
+export default UglifyJS;

@@ -1125,6 +1125,35 @@ export default class Interpreter {
   };
   
   /**
+   * Converts from native JS value to a JS interpreter object.
+   * @param {*} nativeObj The native JS object to be converted.
+   * @return {!Object} The equivalent this.OBJECT.
+   */
+  createPseudoObject(nativeObj) {
+    if (typeof nativeObj === 'function') {
+      return this.createNativeFunction(nativeObj);
+    } else if (typeof nativeObj !== 'object') {
+      return this.createPrimitive(nativeObj);
+    }
+    var pseudoObject;
+    if (nativeObj instanceof Array) { // Array.
+      pseudoObject = this.createObject(thisInterpreter.ARRAY);
+      for (var i = 0; i < nativeObj.length; i++) {
+        this.setProperty(pseudoObject, i,
+                                    this.createPseudoObject(nativeObj[i]));
+      }
+    } else { // Object.
+      pseudoObject = this.createObject(this.OBJECT);
+      for (var key in nativeObj) {
+        this.setProperty(pseudoObject, key,
+                                    this.createPseudoObject(nativeObj[key]));
+      }
+    }
+    pseudoObject.data = nativeObj;
+    return pseudoObject;
+  }
+
+  /**
    * Initialize JSON object.
    * @param {!Object} scope Global scope.
    */
@@ -1133,37 +1162,11 @@ export default class Interpreter {
     var myJSON = thisInterpreter.createObject(this.OBJECT);
     this.setProperty(scope, 'JSON', myJSON);
   
-    /**
-     * Converts from native JS value to a JS interpreter object.
-     * @param {*} nativeObj The native JS object to be converted.
-     * @return {!Object} The equivalent this.OBJECT.
-     */
-    function toPseudoObject(nativeObj) {
-      if (typeof nativeObj !== 'object') {
-        return thisInterpreter.createPrimitive(nativeObj);
-      }
-      var pseudoObject;
-      if (nativeObj instanceof Array) { // Array.
-        pseudoObject = thisInterpreter.createObject(thisInterpreter.ARRAY);
-        for (var i = 0; i < nativeObj.length; i++) {
-          thisInterpreter.setProperty(pseudoObject, i,
-                                      toPseudoObject(nativeObj[i]));
-        }
-      } else { // Object.
-        pseudoObject = thisInterpreter.createObject(thisInterpreter.OBJECT);
-        for (var key in nativeObj) {
-          thisInterpreter.setProperty(pseudoObject, key,
-                                      toPseudoObject(nativeObj[key]));
-        }
-      }
-      return pseudoObject;
-    }
-  
     var wrapper = (function(nativeFunc) {
       return function() {
         var arg = arguments[0].data;
         var nativeObj = nativeFunc.call(JSON, arg);
-        return toPseudoObject(nativeObj);
+        return thisInterpreter.createPseudoObject(nativeObj);
       };
     })(JSON.parse);
     this.setProperty(myJSON, 'parse', this.createNativeFunction(wrapper));
@@ -1679,6 +1682,7 @@ export default class Interpreter {
       }
       scope = scope.parentScope;
     }
+    console.log(nameStr, this);
     this.throwException(this.REFERENCE_ERROR, nameStr + ' is not defined');
     return this.UNDEFINED;
   };
