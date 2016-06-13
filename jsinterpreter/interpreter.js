@@ -1137,7 +1137,7 @@ export default class Interpreter {
     }
     var pseudoObject;
     if (nativeObj instanceof Array) { // Array.
-      pseudoObject = this.createObject(thisInterpreter.ARRAY);
+      pseudoObject = this.createObject(this.ARRAY);
       for (var i = 0; i < nativeObj.length; i++) {
         this.setProperty(pseudoObject, i,
                                     this.createPseudoObject(nativeObj[i]));

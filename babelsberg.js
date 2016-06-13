@@ -1,14 +1,14 @@
 import Constraint from './constraint.js';
 
-import {recursionGuard} from './util.js'
+import {recursionGuard} from './util.js';
 
 // import * as z3 from './z3.js';
 //import Cassowary from './bbb-rhea.js';
-import * as deltablue from '../deltablue/deltablue.js';
-import Relax from './bbb-relax.js';
-import * as backtalk from '../backtalk/backtalk.js';
+// import * as deltablue from '../deltablue/deltablue.js';
+// import Relax from './bbb-relax.js';
+// import * as backtalk from '../backtalk/backtalk.js';
 
-import {EmptyECJIT} from './jit.js'
+import {EmptyECJIT} from './jit.js';
 
 /**
  * The interface to create, maintain and remove constraints.
@@ -19,11 +19,11 @@ export class Babelsberg {
     constructor() {
         this.defaultSolvers = [
             // new Cassowary(),
-            new deltablue.Planner(),
-            new Relax(),
+            // new deltablue.Planner(),
+            // new Relax(),
             // new CommandLineZ3(),
             // new StrZ3(),
-            new backtalk.Solver()
+            // new backtalk.Solver()
             // new csp.Solver()
         ];
         this.defaultReevaluationInterval = 1000;
@@ -479,15 +479,14 @@ export class Babelsberg {
             }
         }
         var minIndex = -1;
-        var constraint = null;
         if (opts.optimizationPriority === undefined) {
             opts.optimizationPriority = ['time', 'numberOfChangedVariables'];
         }
         var minimumConstraintMetrics = {};
-        for (var i = 0; i < opts.optimizationPriority.length; i++) {
+        for (i = 0; i < opts.optimizationPriority.length; i++) {
             minimumConstraintMetrics[opts.optimizationPriority[i]] = Number.MAX_VALUE;
         }
-        for (var i = 0; i < constraints.length; i++) {
+        for (i = 0; i < constraints.length; i++) {
             if (!constraints[i]) {
                 continue;
             }
@@ -518,18 +517,6 @@ export class Babelsberg {
             constraint = constraints[minIndex];
             console.log('Selected best solver: ' + constraint.solver.solverName);
         }
-        return constraint;
-    }
-
-    /**
-     * Creates a constraint equivalent to the given function through
-     * Babelsberg#always, and then disables it immediately
-     * @function Babelsberg#once
-     * @public
-     */
-    once(opts, func) {
-        var constraint = this.always(opts, func);
-        constraint.disable();
         return constraint;
     }
 
@@ -569,7 +556,7 @@ export class Babelsberg {
                 var cb = bbb.callbacks.shift();
                 cb.func.apply(cb.context, cb.args);
             }
-        })
+        });
     }
 
     isValueClass(variable) {
@@ -582,5 +569,5 @@ export class Babelsberg {
  * A globally accessible instance of {@link Babelsberg}
  * @global
  */
-var bbb = new Babelsberg()
+var bbb = new Babelsberg();
 export default bbb;

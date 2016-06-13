@@ -2,6 +2,7 @@ import bbb from './babelsberg.js'
 import ConstraintInterpreter from './constraintinterpreter.js'
 import * as acorn from './jsinterpreter/acorn.js'
 import Interpreter from './jsinterpreter/interpreter.js'
+import Relax from './bbb-relax.js'
 
 import {assert} from '../lively4-core/node_modules/chai/chai.js'
 
@@ -73,7 +74,7 @@ describe("bbb", function() {
     console.log(foo)
   })
 
-  it("should allow constrained access to important globals", function() {
+  xit("should allow constrained access to important globals", function() {
     var predicate = function () {
       return [jQuery, $, _, lively];
     }
@@ -93,13 +94,13 @@ describe("bbb", function() {
   it("should solve a simple constraint", function() {
     var obj = {a: 2, b: 3};
         bbb.always({
-            solver: new ClSimplexSolver(),
+            solver: new Relax(),
             ctx: {
                 obj: obj
             }
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(obj.a + obj.b == 3, "Solver failed: " + obj.a + ", " + obj.b)
+        assert(obj.a + obj.b == 3, "Solver failed: " + obj.a + ", " + obj.b)
   })
 })

@@ -3,7 +3,7 @@
  * @class Constraint
  */
 export default class Constraint {
-    initialize(predicate, solver) {
+    constructor(predicate, solver, interpreter) {
         var constraintObject;
         this._enabled = false;
         this._predicate = predicate;
@@ -14,28 +14,30 @@ export default class Constraint {
         this.constraintobjects = [];
         this.constraintvariables = [];
         this.solver = solver;
-        this.reevaluationInterval = bbb.defaultReevaluationInterval;
+        this.reevaluationInterval = 10000;
         this.updateCounter = 0;
 
         // FIXME: this global state is ugly
         try {
             Constraint.current = this;
-            constraintObject = cop.withLayers([ConstraintConstructionLayer], function() {
-                return predicate.forInterpretation().apply(undefined, []);
-            });
+            debugger
+            constraintObject = interpreter.runAndReturn(
+              predicate.toString(),
+              predicate.varMapping
+            );
         } finally {
             Constraint.current = null;
         }
         this.addPrimitiveConstraint(constraintObject);
     }
     addPrimitiveConstraint(obj) {
-        if (typeof(obj) != 'undefined' && !this.constraintobjects.include(obj)) {
+        if (typeof(obj) != 'undefined' && !_.include(this.constraintobjects, obj)) {
             if (!obj.enable) this.haltIfDebugging();
             this.constraintobjects.push(obj);
         }
     }
     addConstraintVariable(v) {
-        if (v && !this.constraintvariables.include(v)) {
+        if (v && !_.include(this.constraintvariables, v)) {
             this.constraintvariables.push(v);
         }
     }
@@ -133,7 +135,7 @@ export default class Constraint {
                    }
                    return sumOfSquaredDistances;
                }
-            }
+            };
         }
     }
 
@@ -197,7 +199,6 @@ export default class Constraint {
         // TODO: Fix this so it uses the split-stay result, i.e. just
         // increase the stay for the newly assigned value
         if (this.isTest && !this.solver) {
-            debugger;
             // TODO: If this is a test and there is no solver,
             // we can safely just run this as an assert
         }
@@ -213,7 +214,7 @@ export default class Constraint {
 
         cvars.select(function(ea) {
             // all the cvars that are not in this constraint anymore
-            return !this.constraintvariables.include(ea) && ea.isSolveable();
+            return !_.include(this.constraintvariables, ea) && ea.isSolveable();
         }.bind(this)).forEach(function(ea) {
             return ea.externalVariable.removeStay();
         });
@@ -223,7 +224,7 @@ export default class Constraint {
 
             assignments = this.constraintvariables.select(function(ea) {
                 // all the cvars that are new after this recalculation
-                return !cvars.include(ea) && ea.isSolveable();
+                return !_.include(cvars, ea) && ea.isSolveable();
             }).collect(function(ea) {
                 // add a required constraint for the new variable
                 // to keep its new value, to have the same semantics

@@ -1,8 +1,8 @@
 import Constraint from './constraint.js';
-import {newUUID} from './util.js'
+import {recursionGuard, newUUID} from './util.js';
 
 export default class ConstrainedVariable {
-    initialize(obj, ivarname, optParentCVar) {
+    constructor(obj, ivarname, optParentCVar) {
         this.__uuid__ = newUUID();
         this.obj = obj;
         this.ivarname = ivarname;
@@ -15,7 +15,6 @@ export default class ConstrainedVariable {
         var value = obj[ivarname],
             solver = this.currentSolver;
 
-        dbgOn(!solver);
         this.ensureExternalVariableFor(solver);
 
         this.wrapProperties(obj, solver);
@@ -95,8 +94,8 @@ export default class ConstrainedVariable {
                 return value;
             }
 
+            var isInitiatingSuggestForDefiningConstraint = false;
             try {
-                var isInitiatingSuggestForDefiningConstraint = false;
                 if (definingConstraint !== null) {
                     isInitiatingSuggestForDefiningConstraint =
                         !definingConstraint.isAnyVariableCurrentlySuggested;
@@ -324,7 +323,7 @@ export default class ConstrainedVariable {
         if (ary.indexOf(this) !== -1) return;
 
         ary.push(this);
-        this._constraints(function(c) {
+        this._constraints.forEach(function(c) {
             return c.constraintvariables(function(cvar) {
                 cvar.findTransitiveConnectedVariables(ary);
             });
@@ -334,9 +333,9 @@ export default class ConstrainedVariable {
     updateConnectedVariables() {
         // so slow :(
         var self = this;
-        this._constraints.collect(function(c) {
+        _.uniq(_.flatten(this._constraints.map(function(c) {
             return c.constraintvariables;
-        }).flatten().uniq()(function(cvar) {
+        }))).forEach(function(cvar) {
             cvar.suggestValue(cvar.getValue()); // will store and recurse only if needed
         });
     }
@@ -368,7 +367,7 @@ export default class ConstrainedVariable {
 
     recalculateDownstreamConstraints(value) {
         this.setValue(value);
-        this._constraints(function(c) {
+        this._constraints.forEach(function(c) {
             var eVar = this.externalVariables(c.solver);
             if (!eVar) {
                 c.recalculate();
@@ -378,29 +377,31 @@ export default class ConstrainedVariable {
 
     updateValueClassParts(value) {
         recursionGuard(this, '$$valueClassUpdate', (function() {
-            for (key in this.storedValue[ConstrainedVariable.AttrName]) {
+            for (var key in this.storedValue[ConstrainedVariable.AttrName]) {
                 var cvar = this.storedValue[ConstrainedVariable.AttrName][key];
                 cvar.suggestValue(value[key]);
             }
-        }).bind(this))
+        }).bind(this));
     }
 
     addToConstraint(constraint) {
-        if (!this._constraints.include(constraint)) {
+        if (!_.include(this._constraints, constraint)) {
             this._constraints.push(constraint);
         }
         constraint.addConstraintVariable(this);
     }
     get definingSolver() {
+        var defining;
         if (Constraint.current || this._hasMultipleSolvers) {
             // no fast path for variables with multiple solvers for now
             this._definingSolver = null;
-            var defining = this._searchDefiningSolverAndConstraint();
+            defining = this._searchDefiningSolverAndConstraint();
             return defining.solver;
         } else if (!this._definingSolver) {
-            var defining = this._searchDefiningSolverAndConstraint();
+            defining = this._searchDefiningSolverAndConstraint();
             this._definingConstraint = defining.constraint;
-            return this._definingSolver = defining.solver;
+            this._definingSolver = defining.solver;
+            return this._definingSolver;
         } else {
             return this._definingSolver;
         }
@@ -542,7 +543,7 @@ export default class ConstrainedVariable {
         } else {
             if (value) {
                 value.__solver__ = value.__solver__ || solver;
-                if (value.__cvar__ && !(value.__cvar__ === this)) {
+                if (value.__cvar__ && (value.__cvar__ !== this)) {
                     throw 'Inconsistent external variable. This should not happen!';
                 }
                 value.__cvar__ = this;
@@ -562,7 +563,7 @@ export default class ConstrainedVariable {
         if (abandonedIndex !== -1)
             this._constraints.splice(abandonedIndex, 1);
         // collect all external variables which can be detached
-        var externalVariableKeysToRemove = _.keys(this._externalVariables).findAll(
+        var externalVariableKeysToRemove = _.keys(this._externalVariables).filter(
             function(eachSolverUUID) {
                 var externalVariable = this._externalVariables[eachSolverUUID];
                 if (externalVariable === null)
@@ -574,13 +575,13 @@ export default class ConstrainedVariable {
                 return !hasSomeOtherConstraintForThisSolver;
             }.bind(this));
         // detach collected external variables
-        externalVariableKeysToRemove(function(each) {
+        externalVariableKeysToRemove.forEach(function(each) {
             delete this._externalVariables[each];
         }.bind(this));
     }
 
     hasEnabledConstraint() {
-        return this._constraints.length == 0 ||
+        return this._constraints.length === 0 ||
             this._constraints.some(function(constraint) {
                 return constraint._enabled;
             });
@@ -615,5 +616,5 @@ export default class ConstrainedVariable {
 
 ConstrainedVariable.AttrName = '__constrainedVariables__';
 ConstrainedVariable.ThisAttrName = '__lastConstrainedVariableForThis__';
-ConstrainedVariable.isSuggestingValue = {}
+ConstrainedVariable.isSuggestingValue = {};
 

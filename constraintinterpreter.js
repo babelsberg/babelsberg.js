@@ -1,16 +1,19 @@
-import * as acorn from './jsinterpreter/acorn.js'
-import Interpreter from './jsinterpreter/interpreter.js'
+import * as acorn from './jsinterpreter/acorn.js';
+import Interpreter from './jsinterpreter/interpreter.js';
 
-import bbb from './babelsberg.js'
-import ConstrainedVariable from './constrainedvariable.js'
-import Constraint from './constraint.js'
+import bbb from './babelsberg.js';
+import ConstrainedVariable from './constrainedvariable.js';
+import Constraint from './constraint.js';
 
-import {recursionGuard, newUUID} from './util.js'
+import {recursionGuard, newUUID} from './util.js';
 
 // import { copv2 as cop } from './ContextJS/copv2/Layers.js'
 
 export default class ConstraintInterpreter extends Interpreter {
-  
+    static newConstraint(func, solver) {
+      return new Constraint(func, solver, this);
+    }
+
     static runAndReturn(func, optScope) {
       var scope = optScope || {};
       var i = new ConstraintInterpreter(
@@ -45,7 +48,7 @@ export default class ConstraintInterpreter extends Interpreter {
         '||': ['cnOr', 'cnOr'],
         '!=': ['cnNeq', 'cnNeq'],
         '!==': ['cnNotIdentical', 'cnNotIdentical']
-      }
+      };
     }
 
     get alternativeExpressionsMapTo() {
@@ -54,7 +57,7 @@ export default class ConstraintInterpreter extends Interpreter {
         '<=': '<',
         '>=': '>',
         '==': '==='
-      }
+      };
     }
 
     get alternativeExpressionsMap() {
@@ -328,9 +331,8 @@ export default class ConstraintInterpreter extends Interpreter {
             var value = this.pvtStepBinaryExpression(state, node);
             if (value === undefined) {
               // pass
-            } else if (value.isConstraintObject) {
-              this.stateStack[0].value = this.createPseudoObject(value);
             } else {
+              debugger
               this.stateStack[0].value = this.createPseudoObject(value);
             }
         } finally {
@@ -438,7 +440,6 @@ export default class ConstraintInterpreter extends Interpreter {
                 obj = this.getConstraintObjectValue(obj);
             }
         }
-        debugger
         cvar = ConstrainedVariable.newConstraintVariableFor(obj, name, cobj);
         if (Constraint.current) {
             cvar.ensureExternalVariableFor(Constraint.current.solver);
@@ -487,7 +488,7 @@ export default class ConstraintInterpreter extends Interpreter {
 
     stepReturnStatement() {
       super.stepReturnStatement();
-      var state = state = this.stateStack[0];
+      var state = this.stateStack[0];
       if (state.done) {
           var stateThis = state.funcThis_,
               func = state.func_,

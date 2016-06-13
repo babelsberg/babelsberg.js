@@ -1,6 +1,7 @@
-import PlainRelax from '../relax/relax.js';
-import Constraint from './constraint.js';
+import {default as PlainRelax, RelaxNode} from '../relax/relax.js';
+import ConstraintInterpreter from './constraintinterpreter.js';
 
+import {newUUID} from './util.js';
 
 // Babelsberg required interface
 // addConstraint, removeConstraint
@@ -11,7 +12,7 @@ export default class Relax extends PlainRelax {
           throw 'soft constraints not implemented for relax';
       }
       func.varMapping = opts.ctx;
-      var constraint = new Constraint(func, this);
+      var constraint = ConstraintInterpreter.newConstraint(func, this);
       this.addConstraint(constraint.constraintobjects[0]);
       //this.solve();
       return constraint;
@@ -21,7 +22,7 @@ export default class Relax extends PlainRelax {
       if ((typeof(value) == 'number') ||
               (value === null) ||
               (value instanceof Number)) {
-          var name = ivarname + ':' + Strings.newUUID();
+          var name = ivarname + ':' + newUUID();
           var v = new RelaxNode('vars[\"' + name + '\"]', [name], this);
           this.addVar(name, value);
           return v;
