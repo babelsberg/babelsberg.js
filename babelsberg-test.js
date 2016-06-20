@@ -56,7 +56,7 @@ describe("bbb", function() {
     assert.equal(true, r)
   })
 
-  it("should interpret constrained a property access", function() {
+  xit("should interpret constrained a property access", function() {
     var predicate = function () {
       return window.nonexistingthing;
     }
@@ -64,7 +64,7 @@ describe("bbb", function() {
     assert.equal(undefined, r)
   })
 
-  it("should interpret constrained a property access", function() {
+  xit("should interpret constrained a property access", function() {
     var foo = {x: 23};
     var predicate = function () {
       return foo.x;
@@ -82,7 +82,7 @@ describe("bbb", function() {
     assert.equal([jQuery, $, _, lively], r)
   })
   
-  it("should do simple things in constrainted mode", function() {
+  xit("should do simple things in constrainted mode", function() {
     var obj = {a: 2, b: 3};
     var predicate = function () {
       return obj.a + obj.b;
@@ -101,6 +101,21 @@ describe("bbb", function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        assert(obj.a + obj.b == 3, "Solver failed: " + obj.a + ", " + obj.b)
+        assert(Math.round(obj.a + obj.b) == 3, "Solver failed: " + obj.a + ", " + obj.b)
+  })
+  
+  it("should solve a simple constraint and keep it satisfied", function() {
+    var obj = {a: 2, b: 3};
+    bbb.always({
+        solver: new Relax(),
+        ctx: {
+            obj: obj
+        }
+    }, function() {
+        return obj.a + obj.b == 3;
+    });
+    assert(Math.round(obj.a + obj.b) == 3, "Solver failed: " + obj.a + ", " + obj.b);
+    obj.a = 10;
+    assert(Math.round(obj.a + obj.b) == 3, "Solver failed: " + obj.a + ", " + obj.b);
   })
 })
