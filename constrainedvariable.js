@@ -1,5 +1,6 @@
 import Constraint from './constraint.js';
 import {recursionGuard, newUUID} from './util.js';
+import bbb from './babelsberg.js';
 
 export default class ConstrainedVariable {
     constructor(obj, ivarname, optParentCVar) {
@@ -306,7 +307,7 @@ export default class ConstrainedVariable {
                 }
             }.bind(this));
         } else if (!bool && this.$$downstreamReadonlyVars) {
-            this.$$downstreamReadonlyVars(function(eVar) {
+            this.$$downstreamReadonlyVars.forEach(function(eVar) {
                 eVar.setReadonly(false);
             }.bind(this));
             this.$$downstreamReadonlyVars = null;
@@ -324,7 +325,7 @@ export default class ConstrainedVariable {
 
         ary.push(this);
         this._constraints.forEach(function(c) {
-            return c.constraintvariables(function(cvar) {
+            return c.constraintvariables.forEach(function(cvar) {
                 cvar.findTransitiveConnectedVariables(ary);
             });
         });
