@@ -599,7 +599,8 @@ export default class ConstrainedVariable {
 
     static newConstraintVariableFor(obj, ivarname, cobj) {
         var cvar = this.findConstraintVariableFor(obj, ivarname);
-        if (!cvar) {
+        if (!cvar && (typeof(obj[ivarname]) != "function")) {
+            debugger
             cvar = new ConstrainedVariable(obj, ivarname, cobj);
             obj[ConstrainedVariable.AttrName] = obj[ConstrainedVariable.AttrName] || {};
             obj[ConstrainedVariable.AttrName][ivarname] = cvar;

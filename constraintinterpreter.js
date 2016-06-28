@@ -181,87 +181,69 @@ export default class ConstraintInterpreter extends Interpreter {
           this.stateStack[0].value = value;
         }
     }
-    
-    
-    
-    stepCallExpression() {
+
+    executeFunction() {
       var state = this.stateStack[0],
-          node = state.node,
-          n = state.n_ || 0;
-      if (state.doneCallee_ &&
-            state.func_ &&
-            state.arguments &&
-            state.arguments.length == node.arguments.length &&
-            !(node.arguments[n]) &&
-            !state.doneExec) {
-        // only when all arguments are prepared do we come here
-        if (state.func_.nativeFunc) {
-          debugger
-          // only check if the receiver is Math, to get special functions
-          var firstArg = state.arguments[0].valueOf();
-          if (func === Math.sqrt && firstArg.pow || firstArg.sqrt) {
-            if (firstArg.pow) {
-              state.value = this.createPseudoObject(firstArg.pow.apply(firstArg, [0.5]));
-            } else {
-              state.value = this.createPseudoObject(firstArg.sqrt.apply(firstArg, []));
-            }
-          } else if (func === Math.pow && firstArg.pow) {
-            state.value = this.createPseudoObject(
-                    firstArg.pow.apply(firstArg, [state.arguments[1].valueOf()]));
-          } else if (func === Math.sin && firstArg.sin) {
-            state.value = this.createPseudoObject(firstArg.sin.apply(firstArg, []));
-          } else if (func === Math.cos && firstArg.cos) {
-            state.value = this.createPseudoObject(firstArg.cos.apply(firstArg, []));
+          node = state.node;
+      if (state.func_ && state.func_.nativeFunc) {
+        // check if the receiver is Math, to get special functions
+        var firstArg = state.arguments[0].valueOf(),
+            func = state.func_.nativeFunc;
+        if (func === Math.sqrt && firstArg.pow || firstArg.sqrt) {
+          if (firstArg.pow) {
+            state.value = this.createPseudoObject(firstArg.pow.apply(firstArg, [0.5]));
           } else {
-            super.stepCallExpression();
+            state.value = this.createPseudoObject(firstArg.sqrt.apply(firstArg, []));
           }
-        } else if (state.func.node &&
-                  state.funcThis_.valueOf() &&
-                  state.funcThis_.valueOf().isConstraintObject) {
+          return;
+        } else if (func === Math.pow && firstArg.pow) {
+          state.value = this.createPseudoObject(
+                  firstArg.pow.apply(firstArg, [state.arguments[1].valueOf()]));
+          return;
+        } else if (func === Math.sin && firstArg.sin) {
+          state.value = this.createPseudoObject(firstArg.sin.apply(firstArg, []));
+          return;
+        } else if (func === Math.cos && firstArg.cos) {
+          state.value = this.createPseudoObject(firstArg.cos.apply(firstArg, []));
+          return;
+        } else if (state.funcThis_ &&
+                   state.funcThis_.valueOf() &&
+                   state.funcThis_.valueOf().isConstraintObject) {
           debugger
-          if (func) {
-            var forInterpretation = func.forInterpretation;
-            func.forInterpretation = undefined;
-            var prevNode = bbb.currentNode,
-                prevInterp = bbb.currentInterpreter;
-            bbb.currentInterpreter = this;
-            bbb.currentNode = node;
-                try {
-                    return cop.withoutLayers([ConstraintConstructionLayer], function() {
-                        return $super(node, recv, func, argValues);
-                    });
-                } catch (e) {
-                    // TIM: send doesNotUnderstand to solver variable?
-                    return this.errorIfUnsolvable(
-                        (node.property && node.property.value),
-                        recv,
-                        (function() {
-                            var value = this.getConstraintObjectValue(recv);
-                            var prop = this.visit(node.property);
-                            return this.invoke(node, value, value[prop], argValues);
-                        }).bind(this)
-                    );
-                } finally {
-                    func.forInterpretation = forInterpretation;
-                    bbb.currentInterpreter = prevInterp;
-                    bbb.currentNode = prevNode;
-                }
-            } else {
-                return this.errorIfUnsolvable(
-                    (node.property && node.property.value),
-                    recv,
-                    (function() {
-                        var value = this.getConstraintObjectValue(recv);
-                        var prop = this.visit(node.property);
-                        return this.invoke(node, value, value[prop], argValues);
-                    }).bind(this)
-                );
-            }
+          var prevNode = bbb.currentNode,
+              prevInterp = bbb.currentInterpreter;
+          bbb.currentInterpreter = this;
+          bbb.currentNode = node;
+          try {
+            super.executeFunction(); // this will do a native call
+          } catch(e) {
+            // TIM: send doesNotUnderstand to solver variable?
+            return this.errorIfUnsolvable(
+              (node.property && node.property.value),
+              recv,
+              (function() {
+                var value = this.getConstraintObjectValue(recv);
+                var prop = this.visit(node.property);
+                return this.invoke(node, value, value[prop], argValues);
+              }).bind(this)
+            );
+          } finally {
+            bbb.currentInterpreter = prevInterp;
+            bbb.currentNode = prevNode;
+          }
+          return;
         } else {
-          super.stepCallExpression();
+          try {
+            state.func_.node = acorn.parse(state.func_.nativeFunc.toString()).body[0];
+            state.func_.node.type = 'CallExpression';
+            state.func_.nativeFunc = undefined;
+          } catch(e) {
+            // do nothing, just interpret it as a native function
+          }
+          super.executeFunction();
         }
       } else {
-        super.stepCallExpression();
+        super.executeFunction();
       }
     }
 
@@ -332,7 +314,6 @@ export default class ConstraintInterpreter extends Interpreter {
             if (value === undefined) {
               // pass
             } else {
-              debugger
               this.stateStack[0].value = this.createPseudoObject(value);
             }
         } finally {
@@ -431,7 +412,7 @@ export default class ConstraintInterpreter extends Interpreter {
         }
         if (obj && obj.isConstraintObject) {
             if (obj['cn' + name]) {
-                return obj['cn' + name]; // XXX: TODO: Document this
+                return this.createPseudoObject(obj['cn' + name]); // XXX: TODO: Document this
             } else if (name === 'is') {
                 // possibly a finite domain definition
                 this.$finiteDomainProperty = obj;
@@ -441,12 +422,12 @@ export default class ConstraintInterpreter extends Interpreter {
             }
         }
         cvar = ConstrainedVariable.newConstraintVariableFor(obj, name, cobj);
-        if (Constraint.current) {
+        if (cvar && Constraint.current) {
             cvar.ensureExternalVariableFor(Constraint.current.solver);
             cvar.addToConstraint(Constraint.current);
         }
         if (cvar && cvar.isSolveable()) {
-            return cvar.externalVariable;
+            return this.createPseudoObject(cvar.externalVariable);
         } else {
             var retval = obj[name];
             if (!retval || !retval.isConstraintObject) {
@@ -464,7 +445,7 @@ export default class ConstraintInterpreter extends Interpreter {
                   Constraint.current.haltIfDebugging();
                 }
             }
-            if (retval) {
+            if (retval && cvar) {
                 switch (typeof(retval)) {
                 case 'object':
                 case 'function':
@@ -482,7 +463,7 @@ export default class ConstraintInterpreter extends Interpreter {
                         retval + ' of type ' + typeof(retval);
                 }
             }
-            return retval;
+            return this.createPseudoObject(retval);
         }
     }
 

@@ -39,6 +39,7 @@ export default class Interpreter {
     if (typeof code == 'string') {
       code = acorn.parse(code);
     }
+    this.objectMap = new Map();
     this.ast = code;
     this.initFunc_ = opt_initFunc;
     this.paused_ = false;
@@ -1130,13 +1131,14 @@ export default class Interpreter {
    * @return {!Object} The equivalent this.OBJECT.
    */
   createPseudoObject(nativeObj) {
-    if (typeof nativeObj === 'function') {
-      return this.createNativeFunction(nativeObj);
+    var pseudoObject = this.objectMap.get(nativeObj);
+    if (pseudoObject) {
+      return pseudoObject
+    } else if (typeof nativeObj === 'function') {
+      pseudoObject = this.createNativeFunction(nativeObj);
     } else if (typeof nativeObj !== 'object') {
       return this.createPrimitive(nativeObj);
-    }
-    var pseudoObject;
-    if (nativeObj instanceof Array) { // Array.
+    } else if (nativeObj instanceof Array) { // Array.
       pseudoObject = this.createObject(this.ARRAY);
       for (var i = 0; i < nativeObj.length; i++) {
         this.setProperty(pseudoObject, i,
@@ -1144,11 +1146,9 @@ export default class Interpreter {
       }
     } else { // Object.
       pseudoObject = this.createObject(this.OBJECT);
-      for (var key in nativeObj) {
-        this.setProperty(pseudoObject, key,
-                                    this.createPseudoObject(nativeObj[key]));
-      }
+      pseudoObject.isInitialized = false;
     }
+    this.objectMap.set(nativeObj, pseudoObject);
     pseudoObject.data = nativeObj;
     return pseudoObject;
   }
@@ -1477,6 +1477,14 @@ export default class Interpreter {
       return this.createPrimitive(obj.length);
     }
     while (true) {
+      if (obj.isInitialized === false) {
+        // lazy wrapping
+        for (var key in nativeObj) {
+          this.setProperty(pseudoObject, key,
+                            this.createPseudoObject(nativeObj[key]));
+        }
+        obj.isInitialized = true;
+      }
       if (obj.properties && name in obj.properties) {
         return obj.properties[name];
       }
@@ -2088,82 +2096,7 @@ export default class Interpreter {
         state.n_ = n + 1;
         this.stateStack.unshift({node: node.arguments[n]});
       } else if (!state.doneExec) {
-        state.doneExec = true;
-        if (state.func_.node &&
-            (state.func_.node.type == 'FunctionApply_' ||
-             state.func_.node.type == 'FunctionCall_')) {
-          state.funcThis_ = state.arguments.shift();
-          if (state.func_.node.type == 'FunctionApply_') {
-            // Unpack all the arguments from the provided array.
-            var argsList = state.arguments.shift();
-            if (argsList && this.isa(argsList, this.ARRAY)) {
-              state.arguments = [];
-              for (var i = 0; i < argsList.length; i++) {
-                state.arguments[i] = this.getProperty(argsList, i);
-              }
-            } else {
-              state.arguments = [];
-            }
-          }
-          state.func_ = state.member_;
-        }
-        if (state.func_.node) {
-          var scope =
-              this.createScope(state.func_.node.body, state.func_.parentScope);
-          // Add all arguments.
-          for (var i = 0; i < state.func_.node.params.length; i++) {
-            var paramName = this.createPrimitive(state.func_.node.params[i].name);
-            var paramValue = state.arguments.length > i ? state.arguments[i] :
-                this.UNDEFINED;
-            this.setProperty(scope, paramName, paramValue);
-          }
-          // Build arguments variable.
-          var argsList = this.createObject(this.ARRAY);
-          for (var i = 0; i < state.arguments.length; i++) {
-            this.setProperty(argsList, this.createPrimitive(i),
-                             state.arguments[i]);
-          }
-          this.setProperty(scope, 'arguments', argsList);
-          var funcState = {
-            node: state.func_.node.body,
-            scope: scope,
-            thisExpression: state.funcThis_
-          };
-          this.stateStack.unshift(funcState);
-          state.value = this.UNDEFINED;  // Default value if no explicit return.
-        } else if (state.func_.nativeFunc) {
-          state.value = state.func_.nativeFunc.apply(state.funcThis_,
-                                                     state.arguments);
-        } else if (state.func_.asyncFunc) {
-          var thisInterpreter = this;
-          var callback = function(value) {
-            state.value = value || thisInterpreter.UNDEFINED;
-            thisInterpreter.paused_ = false;
-          };
-          var argsWithCallback = state.arguments.concat(callback);
-          state.func_.asyncFunc.apply(state.funcThis_, argsWithCallback);
-          this.paused_ = true;
-          return;
-        } else if (state.func_.eval) {
-          var code = state.arguments[0];
-          if (!code) {
-            state.value = this.UNDEFINED;
-          } else if (!code.isPrimitive) {
-            // JS does not parse String objects:
-            // eval(new String('1 + 1')) -> '1 + 1'
-            state.value = code;
-          } else {
-            var evalInterpreter = new Interpreter(code.toString());
-            evalInterpreter.stateStack[0].scope.parentScope = this.getScope();
-            state = {
-              node: {type: 'Eval_'},
-              interpreter: evalInterpreter
-            };
-            this.stateStack.unshift(state);
-          }
-        } else {
-          throw TypeError('function not a function (huh?)');
-        }
+        this.executeFunction();
       } else {
         this.stateStack.shift();
         if (state.isConstructor_ && state.value.type !== 'object') {
@@ -2174,6 +2107,88 @@ export default class Interpreter {
       }
     }
   };
+  
+  executeFunction() {
+    var state = this.stateStack[0];
+    var node = state.node;
+    state.doneExec = true;
+    if (state.func_.node &&
+        (state.func_.node.type == 'FunctionApply_' ||
+         state.func_.node.type == 'FunctionCall_')) {
+      state.funcThis_ = state.arguments.shift();
+      if (state.func_.node.type == 'FunctionApply_') {
+        // Unpack all the arguments from the provided array.
+        var argsList = state.arguments.shift();
+        if (argsList && this.isa(argsList, this.ARRAY)) {
+          state.arguments = [];
+          for (var i = 0; i < argsList.length; i++) {
+            state.arguments[i] = this.getProperty(argsList, i);
+          }
+        } else {
+          state.arguments = [];
+        }
+      }
+      state.func_ = state.member_;
+    }
+    if (state.func_.node) {
+      var scope =
+          this.createScope(state.func_.node.body, state.func_.parentScope);
+      // Add all arguments.
+      for (var i = 0; i < state.func_.node.params.length; i++) {
+        var paramName = this.createPrimitive(state.func_.node.params[i].name);
+        var paramValue = state.arguments.length > i ? state.arguments[i] :
+            this.UNDEFINED;
+        this.setProperty(scope, paramName, paramValue);
+      }
+      // Build arguments variable.
+      var argsList = this.createObject(this.ARRAY);
+      for (var i = 0; i < state.arguments.length; i++) {
+        this.setProperty(argsList, this.createPrimitive(i),
+                         state.arguments[i]);
+      }
+      this.setProperty(scope, 'arguments', argsList);
+      var funcState = {
+        node: state.func_.node.body,
+        scope: scope,
+        thisExpression: state.funcThis_
+      };
+      this.stateStack.unshift(funcState);
+      state.value = this.UNDEFINED;  // Default value if no explicit return.
+    } else if (state.func_.nativeFunc) {
+      state.value = state.func_.nativeFunc.apply(state.funcThis_,
+                                                 state.arguments);
+    } else if (state.func_.asyncFunc) {
+      var thisInterpreter = this;
+      var callback = function(value) {
+        state.value = value || thisInterpreter.UNDEFINED;
+        thisInterpreter.paused_ = false;
+      };
+      var argsWithCallback = state.arguments.concat(callback);
+      state.func_.asyncFunc.apply(state.funcThis_, argsWithCallback);
+      this.paused_ = true;
+      return;
+    } else if (state.func_.eval) {
+      var code = state.arguments[0];
+      if (!code) {
+        state.value = this.UNDEFINED;
+      } else if (!code.isPrimitive) {
+        // JS does not parse String objects:
+        // eval(new String('1 + 1')) -> '1 + 1'
+        state.value = code;
+      } else {
+        var evalInterpreter = new Interpreter(code.toString());
+        evalInterpreter.stateStack[0].scope.parentScope = this.getScope();
+        state = {
+          node: {type: 'Eval_'},
+          interpreter: evalInterpreter
+        };
+        this.stateStack.unshift(state);
+      }
+    } else {
+      throw TypeError('function not a function (huh?)');
+    }
+  
+  }
   
   stepCatchClause() {
     var state = this.stateStack[0];

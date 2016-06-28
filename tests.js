@@ -3,6 +3,7 @@ import ConstraintInterpreter from './constraintinterpreter.js'
 import * as acorn from './jsinterpreter/acorn.js'
 import Interpreter from './jsinterpreter/interpreter.js'
 import Relax from './bbb-relax.js'
+import ClSimplexSolver from './../dwarfcassowary.js/dwarfcassowary.js';
 
 import {assert} from '../lively4-core/node_modules/chai/chai.js'
 
@@ -17,7 +18,7 @@ describe("Constraint solving", function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(obj.a + obj.b == 3, "Solver failed: " + obj.a + ", " + obj.b)
+        assert(obj.a + obj.b == 3, "Solver failed: " + obj.a + ", " + obj.b)
     })
 
     it('should Inequality', function() {
@@ -30,9 +31,9 @@ describe("Constraint solving", function() {
         }, function() {
             return obj.a >= 100;
         });
-        this.assert(obj.a == 100);
+        assert(obj.a == 100);
         obj.a = 110;
-        this.assert(obj.a == 110);
+        assert(obj.a == 110);
     })
     it('should DisableConstraint', function() {
         var obj = {a: 8};
@@ -45,27 +46,27 @@ describe("Constraint solving", function() {
         }, function() {
             return obj.a >= 100;
         });
-        this.assert(obj.a == 100);
+        assert(obj.a == 100);
         obj.a = 110;
-        this.assert(obj.a == 110);
+        assert(obj.a == 110);
         try {
             obj.a = 90;
         } catch(e) {
             error = true
         }
-        this.assert(error);
+        assert(error);
         c.disable();
         obj.a = 90;
-        this.assert(obj.a == 90);
+        assert(obj.a == 90);
         c.enable();
-        this.assert(obj.a == 100);
+        assert(obj.a == 100);
         error = false;
         try {
             obj.a = 90;
         } catch(e) {
             error = true
         }
-        this.assert(error);
+        assert(error);
     })
 
     it('should SimplePath', function () {
@@ -81,7 +82,7 @@ describe("Constraint solving", function() {
         }, function() {
             return o.a.x + 100 <= o.b.x;
         });
-        this.assert(pointA.x + 100 <= pointB.x, "Solver failed")
+        assert(pointA.x + 100 <= pointB.x, "Solver failed")
     })
     it('should SimplePathInvalidation', function () {
         var pointA = pt(1,2),
@@ -95,10 +96,10 @@ describe("Constraint solving", function() {
         }, function() {
             return o.a.x + 100 <= o.b.x;
         });
-        this.assert(pointA.x + 100 <= pointB.x, "Solver failed");
+        assert(pointA.x + 100 <= pointB.x, "Solver failed");
         pointA = pt(12, 12);
         o.a = pointA;
-        this.assert(pointA.x + 100 <= pointB.x, "Recalculating Path failed");
+        assert(pointA.x + 100 <= pointB.x, "Recalculating Path failed");
     })
 
     it('should TemperatureExample', function() {
@@ -113,11 +114,11 @@ describe("Constraint solving", function() {
             return obj.fahrenheit - 32 == obj.centigrade * 1.8;
         });
 
-        this.assert(CL.approx(obj.fahrenheit - 32, obj.centigrade * 1.8));
+        assert(CL.approx(obj.fahrenheit - 32, obj.centigrade * 1.8));
         obj.fahrenheit = 100;
-        this.assert(CL.approx(obj.fahrenheit - 32, obj.centigrade * 1.8));
+        assert(CL.approx(obj.fahrenheit - 32, obj.centigrade * 1.8));
         obj.centigrade = 121;
-        this.assert(CL.approx(obj.fahrenheit - 32, obj.centigrade * 1.8));
+        assert(CL.approx(obj.fahrenheit - 32, obj.centigrade * 1.8));
     })
     it('should UndefinedVariables', function() {
         var obj = {};
@@ -145,11 +146,11 @@ describe("Constraint solving", function() {
         }, function() {
             return obj.a == obj.txt.getTextString();
         });
-        this.assert(obj.a == obj.txt.getTextString());
+        assert(obj.a == obj.txt.getTextString());
         
         obj.txt.setTextString("15");
-        this.assert(obj.a == obj.txt.getTextString());
-        this.assert(obj.a === 15)
+        assert(obj.a == obj.txt.getTextString());
+        assert(obj.a === 15)
     })
 
     it('should SimpleAssign', function () {
@@ -163,9 +164,9 @@ describe("Constraint solving", function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(obj.a + obj.b == 3, "Solver failed");
+        assert(obj.a + obj.b == 3, "Solver failed");
         obj.a = -5;
-        this.assert(obj.a + obj.b == 3, "Constraint violated after assignment");
+        assert(obj.a + obj.b == 3, "Constraint violated after assignment");
     })
 
     it('should AssignStay', function() {
@@ -178,10 +179,10 @@ describe("Constraint solving", function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(obj.a + obj.b == 3, "Solver failed");
+        assert(obj.a + obj.b == 3, "Solver failed");
         obj.a = -5;
-        this.assert(obj.a + obj.b == 3, "Constraint violated after assignment");
-        this.assert(obj.a == -5, "Assignment without effect");
+        assert(obj.a + obj.b == 3, "Constraint violated after assignment");
+        assert(obj.a == -5, "Assignment without effect");
     })
    it('should EqualityComplexObject', function() {
         var solver = new ClSimplexSolver(),
@@ -199,14 +200,14 @@ describe("Constraint solving", function() {
             return point.equals(pt(10, 10).addPt(pt(11, 11)));;
         });
         
-        this.assert(point.equals(pt(21, 21)), "changed invisible point!");
+        assert(point.equals(pt(21, 21)), "changed invisible point!");
         try {
             point.x = 100;
         } catch(e) {
             assignmentFailed = true;
         }
-        this.assert(point.equals(pt(21, 21)) && assignmentFailed, "changed x!");
-        this.assert(point.equals(pt(21, 21)), "changed x!");
+        assert(point.equals(pt(21, 21)) && assignmentFailed, "changed x!");
+        assert(point.equals(pt(21, 21)), "changed x!");
     })
 
 
@@ -222,7 +223,7 @@ describe("Constraint solving", function() {
         }, function() {
             return pt1.equals(pt2);
         });
-        this.assert(pt1.equals(pt2));
+        assert(pt1.equals(pt2));
     })
 
     it('should PointAddition', function() {
@@ -240,7 +241,7 @@ describe("Constraint solving", function() {
             return pt1.addPt(pt2).equals(pt3);
         });
 
-        this.assert(pt1.addPt(pt2).equals(pt3));
+        assert(pt1.addPt(pt2).equals(pt3));
     })
 
     it('should PointAssignment', function() {
@@ -254,15 +255,15 @@ describe("Constraint solving", function() {
             return obj.p.x >= 100 && obj.p.y >= 100;
         });
 
-        this.assert(pt(100, 100).leqPt(obj.p));
+        assert(pt(100, 100).leqPt(obj.p));
 
         obj.p.x = 150;
-        this.assert(pt(100, 100).leqPt(obj.p));
-        this.assert(obj.p.x === 150);
+        assert(pt(100, 100).leqPt(obj.p));
+        assert(obj.p.x === 150);
 
         obj.p = pt(150, 100);
-        this.assert(pt(100, 100).leqPt(obj.p));
-        this.assert(obj.p.x === 150, "point assignment failed to keep the new point intact");
+        assert(pt(100, 100).leqPt(obj.p));
+        assert(obj.p.x === 150, "point assignment failed to keep the new point intact");
     })
     it('should LivelyPtIsValueClass', function() {
         var c = new ClSimplexSolver();
@@ -271,7 +272,7 @@ describe("Constraint solving", function() {
         
         var old = m.getPosition();
         m.setPosition(pt(100,100));
-        this.assert(old !== m.getPosition());
+        assert(old !== m.getPosition());
         
         bbb.always({
             solver: c,
@@ -285,11 +286,11 @@ describe("Constraint solving", function() {
             return m.getPosition().leqPt(pt(21, 21));;
         });
         
-        this.assert(m.getPosition().equals(pt(21,21)));
+        assert(m.getPosition().equals(pt(21,21)));
         var old = m.getPosition();
         m.setPosition(pt(10,10));
-        this.assert(m.getPosition().equals(pt(10,10)));
-        this.assert(old === m.getPosition());
+        assert(m.getPosition().equals(pt(10,10)));
+        assert(old === m.getPosition());
     })
 
     it('should PointAssignmentComplex', function() {
@@ -305,21 +306,21 @@ describe("Constraint solving", function() {
              obj.p.y >= 100);
         });
 
-        this.assert(pt(100, 100).leqPt(obj.p));
-        this.assert(obj.p.equals(obj.p2));
+        assert(pt(100, 100).leqPt(obj.p));
+        assert(obj.p.equals(obj.p2));
 
         obj.p.x = 150;
-        this.assert(pt(100, 100).leqPt(obj.p));
-        this.assert(obj.p.x === 150);
-        this.assert(obj.p.equals(obj.p2));
+        assert(pt(100, 100).leqPt(obj.p));
+        assert(obj.p.x === 150);
+        assert(obj.p.equals(obj.p2));
 
         obj.p = pt(150, 100);
-        this.assert(obj.p.equals(obj.p2));
-        this.assert(obj.p.equals(pt(150, 100)), "point assignment failed to keep the new point intact");
+        assert(obj.p.equals(obj.p2));
+        assert(obj.p.equals(pt(150, 100)), "point assignment failed to keep the new point intact");
 
         obj.p2 = pt(200, 200);
-        this.assert(obj.p.equals(obj.p2), "Expected " + obj.p + " to equal " + obj.p2);
-        this.assert(obj.p.equals(pt(200, 200)), "Expected " + obj.p + " to equal 200@200");
+        assert(obj.p.equals(obj.p2), "Expected " + obj.p + " to equal " + obj.p2);
+        assert(obj.p.equals(pt(200, 200)), "Expected " + obj.p + " to equal 200@200");
     })
 
     it('should PointAssignmentComplexScaled', function() {
@@ -335,34 +336,34 @@ describe("Constraint solving", function() {
              obj.p.y >= 100);
         });
 
-        this.assert(pt(100, 100).leqPt(obj.p), 'Expected ' + obj.p + ' to be >= pt(100,100)');
-        this.assert(obj.p.equals(obj.p2.scaleBy(2)), 'Expected ' + obj.p + ' to equal ' + obj.p2 + ' times 2');
+        assert(pt(100, 100).leqPt(obj.p), 'Expected ' + obj.p + ' to be >= pt(100,100)');
+        assert(obj.p.equals(obj.p2.scaleBy(2)), 'Expected ' + obj.p + ' to equal ' + obj.p2 + ' times 2');
 
         obj.p.x = 150;
-        this.assert(pt(100, 100).leqPt(obj.p), 'Expected ' + obj.p + ' to be >= pt(100,100)');
-        this.assert(obj.p.x === 150, 'Expected ' + obj.p + '.x to = 150');
-        this.assert(obj.p.equals(obj.p2.scaleBy(2)), 'Expected ' + obj.p + ' to equal ' + obj.p2 + ' times 2');
+        assert(pt(100, 100).leqPt(obj.p), 'Expected ' + obj.p + ' to be >= pt(100,100)');
+        assert(obj.p.x === 150, 'Expected ' + obj.p + '.x to = 150');
+        assert(obj.p.equals(obj.p2.scaleBy(2)), 'Expected ' + obj.p + ' to equal ' + obj.p2 + ' times 2');
 
         obj.p = pt(150, 100);
-        this.assert(obj.p.equals(obj.p2.scaleBy(2)), 'Expected ' + obj.p + ' to equal ' + obj.p2 + ' times 2');
-        this.assert(obj.p.equals(pt(150, 100)), "point assignment failed to keep the new point intact");
+        assert(obj.p.equals(obj.p2.scaleBy(2)), 'Expected ' + obj.p + ' to equal ' + obj.p2 + ' times 2');
+        assert(obj.p.equals(pt(150, 100)), "point assignment failed to keep the new point intact");
 
         obj.p2 = pt(200, 200);
-        this.assert(obj.p.equals(obj.p2.scaleBy(2)),
+        assert(obj.p.equals(obj.p2.scaleBy(2)),
                     "Expected " + obj.p + " to equal " + obj.p2 + " scaled by 2");
-        this.assert(obj.p2.equals(pt(200, 200)),
+        assert(obj.p2.equals(pt(200, 200)),
                     "Expected " + obj.p2 + " to equal 200@200");
 
         try {
             obj.p2 = pt(15, 15);
         } catch(_) {
-            this.assert(obj.p.equals(obj.p2.scaleBy(2)), 'Expected ' + obj.p + ' to equal ' + obj.p2 + ' times 2');
-            this.assert(obj.p2.equals(pt(200, 200)));
+            assert(obj.p.equals(obj.p2.scaleBy(2)), 'Expected ' + obj.p + ' to equal ' + obj.p2 + ' times 2');
+            assert(obj.p2.equals(pt(200, 200)));
         }
-        this.assert(obj.p2.equals(pt(200, 200)));
+        assert(obj.p2.equals(pt(200, 200)));
         obj.p2 = pt(50, 50);
-        this.assert(obj.p.equals(obj.p2.scaleBy(2)));
-        this.assert(obj.p2.equals(pt(50, 50)));
+        assert(obj.p.equals(obj.p2.scaleBy(2)));
+        assert(obj.p2.equals(pt(50, 50)));
     })
 
     it('should SimpleReadonly', function() {
@@ -379,8 +380,8 @@ describe("Constraint solving", function() {
         }, function() {
             return r(obj.a) == obj.b;
         });
-        this.assert(obj.a == 10);
-        this.assert(obj.b == 10);
+        assert(obj.a == 10);
+        assert(obj.b == 10);
         
         ClSimplexSolver.resetInstance();
         var obj2 = {
@@ -396,8 +397,8 @@ describe("Constraint solving", function() {
         }, function() {
             return obj2.a == r(obj2.b);
         });
-        this.assert(obj2.a == 0);
-        this.assert(obj2.b == 0);
+        assert(obj2.a == 0);
+        assert(obj2.b == 0);
 
         ClSimplexSolver.resetInstance();
         var obj3 = {
@@ -414,7 +415,7 @@ describe("Constraint solving", function() {
             }, function() {
                     return r(obj3.a) == r(obj3.b);
             });
-            this.assert(false, "this constraint should throw an exception, because both variables are readonly");
+            assert(false, "this constraint should throw an exception, because both variables are readonly");
         } catch(e) {}
     })
 
@@ -452,13 +453,13 @@ describe("Constraint solving", function() {
                 return i.sum == r(i.value);
             }
         });
-        this.assert(i.sum == 2, "expected sum to equal 2, got " + i.sum);
-        this.assert(i2.sum == 3, "expected sum to equal 3, got " + i2.sum);
+        assert(i.sum == 2, "expected sum to equal 2, got " + i.sum);
+        assert(i2.sum == 3, "expected sum to equal 3, got " + i2.sum);
         i2.prev = i;
-        this.assert(i.sum == 2, "expected sum to equal 2, got " + i.sum);
-        this.assert(i2.sum == 5, "expected sum to equal 5, got " + i2.sum);
+        assert(i.sum == 2, "expected sum to equal 2, got " + i.sum);
+        assert(i2.sum == 5, "expected sum to equal 5, got " + i2.sum);
         i2.prev = {sum: 100}
-        this.assert(i2.sum == 103, "expected sum to equal 103, got " + i2.sum);
+        assert(i2.sum == 103, "expected sum to equal 103, got " + i2.sum);
     })
     it('should NoErrorWithStringConstraint', function() {
         var a = pt(0,0),
@@ -475,7 +476,7 @@ describe("Constraint solving", function() {
         }, function() {
             return a.x == ro(b.length);;
         });
-        this.assert(a.x == "hello".length)
+        assert(a.x == "hello".length)
     })
     it('should 1LvlReadonly', function() {
         var solver = new ClSimplexSolver(),
@@ -495,13 +496,13 @@ describe("Constraint solving", function() {
             return pt1.equals(ro(pt2));
         });
         
-        this.assert(pt1.equals(pt(10,10)))
-        this.assert(pt2.equals(pt(10,10)))
+        assert(pt1.equals(pt(10,10)))
+        assert(pt2.equals(pt(10,10)))
         var failed = false;
         try { pt1.x = 5 } catch(e) { failed = true }
-        this.assert(failed);
-        this.assert(pt1.equals(pt(10,10)));
-        this.assert(pt2.equals(pt(10,10)));
+        assert(failed);
+        assert(pt1.equals(pt(10,10)));
+        assert(pt2.equals(pt(10,10)));
     })
 
 
@@ -516,9 +517,9 @@ describe("Constraint solving", function() {
                 return ctx.a == ctx.b && ctx.c == ctx.d;
             });
 
-        this.assert(ctx.a == ctx.b && ctx.c == ctx.d, "" + ctx.a + "," + ctx.b + "," + ctx.c + "," + ctx.d);
+        assert(ctx.a == ctx.b && ctx.c == ctx.d, "" + ctx.a + "," + ctx.b + "," + ctx.c + "," + ctx.d);
         // should have two primitive constraints
-        this.assert(constraint.constraintobjects.length == 2);
+        assert(constraint.constraintobjects.length == 2);
     })
 });
 
@@ -539,24 +540,24 @@ describe("Propagation", function() {
             return o.a.equals(o.b.addPt(o.c)) && o.b.equals(o.a.subPt(o.c)) && o.c.equals(o.a.subPt(o.b));;
         });
         
-        this.assert(o.a.equals(o.b.addPt(o.c)));
+        assert(o.a.equals(o.b.addPt(o.c)));
 
         o.a = pt(100,100);
-        this.assert(o.a.equals(o.b.addPt(o.c)));
-        this.assert(o.a.equals(pt(100,100)));
+        assert(o.a.equals(o.b.addPt(o.c)));
+        assert(o.a.equals(pt(100,100)));
 
         // TODO XXX: these require value class updates
         // o.a.x = 12
-        // this.assert(o.a.equals(o.b.addPt(o.c)));
-        // this.assert(o.a.equals(pt(12,100)));
+        // assert(o.a.equals(o.b.addPt(o.c)));
+        // assert(o.a.equals(pt(12,100)));
 
         // o.b.y = pt(23)
-        // this.assert(o.a.equals(o.b.addPt(o.c)));
-        // this.assert(o.b.y === 23);
+        // assert(o.a.equals(o.b.addPt(o.c)));
+        // assert(o.b.y === 23);
 
         o.c.x = 18
-        this.assert(o.a.equals(o.b.addPt(o.c)));
-        this.assert(o.c.x === 18);
+        assert(o.a.equals(o.b.addPt(o.c)));
+        assert(o.c.x === 18);
     })
 
     it('should OneWayConstraintFromEquals', function() {
@@ -575,19 +576,19 @@ describe("Propagation", function() {
             return o.a.equals(o.b.addPt(o.c)) && o.b.equals(o.a.subPt(o.c)) && o.c.equals(o.a.subPt(o.b));;
         });
         
-        this.assert(o.a.equals(o.b.addPt(o.c)));
+        assert(o.a.equals(o.b.addPt(o.c)));
 
         o.a = pt(100,100);
-        this.assert(o.a.equals(o.b.addPt(o.c)));
-        this.assert(o.a.equals(pt(100,100)));
+        assert(o.a.equals(o.b.addPt(o.c)));
+        assert(o.a.equals(pt(100,100)));
 
         o.b = pt(20,20)
-        this.assert(o.a.equals(o.b.addPt(o.c)));
-        this.assert(o.b.equals(pt(20,20)));
+        assert(o.a.equals(o.b.addPt(o.c)));
+        assert(o.b.equals(pt(20,20)));
 
         o.c = pt(13,13)
-        this.assert(o.a.equals(o.b.addPt(o.c)));
-        this.assert(o.c.equals(pt(13,13)));
+        assert(o.a.equals(o.b.addPt(o.c)));
+        assert(o.c.equals(pt(13,13)));
     })
 
     it('should OneWayConstraintFromEq', function() {
@@ -602,13 +603,13 @@ describe("Propagation", function() {
             o.number == parseFloat(o.string);
         });
 
-        this.assert(o.string === o.number + "");
+        assert(o.string === o.number + "");
         o.string = "1"
-        this.assert(o.number === 1);
+        assert(o.number === 1);
         var cannotSatisfy;
         o.number = 12;
-        this.assert(o.number == 12);
-        this.assert(o.string == "12");
+        assert(o.number == 12);
+        assert(o.string == "12");
     })
 
     it('should OnlyOneConstraintIsCreatedWithoutAnd', function() {
@@ -623,13 +624,13 @@ describe("Propagation", function() {
             return o.number == parseFloat(o.string);
         });
 
-        this.assert(o.string === o.number + "");
+        assert(o.string === o.number + "");
         o.string = "1"
-        this.assert(o.number === 1);
+        assert(o.number === 1);
         var cannotSatisfy;
         o.number = 12;
-        this.assert(o.number == 1);
-        this.assert(o.string == 1);
+        assert(o.number == 1);
+        assert(o.string == 1);
     })
 
     it('should SimplePropagation', function() {
@@ -648,11 +649,11 @@ describe("Propagation", function() {
             return o.string == o.number + "";
         });
 
-        this.assert(o.string === o.number + "");
+        assert(o.string === o.number + "");
         o.string = "1"
-        this.assert(o.number === 1);
+        assert(o.number === 1);
         o.number = 12
-        this.assert(o.string === "12");
+        assert(o.string === "12");
     })
     it('should JustEquality', function() {
         var db = new DBPlanner(),
@@ -668,8 +669,8 @@ describe("Propagation", function() {
             return obj.a == obj.b;
         });
 
-        this.assert(obj.a.equals(obj.b));
-        this.assert(obj.a !== obj.b);
+        assert(obj.a.equals(obj.b));
+        assert(obj.a !== obj.b);
     })
     it('should JustEquality2', function() {
         var db = new DBPlanner(),
@@ -685,8 +686,8 @@ describe("Propagation", function() {
             return obj.a.equals(obj.b);
         });
 
-        this.assert(obj.a.equals(obj.b));
-        this.assert(obj.a !== obj.b);
+        assert(obj.a.equals(obj.b));
+        assert(obj.a !== obj.b);
     })
 
     it('should AutomaticSetterInference', function() {
@@ -715,15 +716,15 @@ describe("Propagation", function() {
         }, function() {
             return r1.getPosition().equals(r2.getPosition());;
         });
-        this.assert(r1.getPosition().equals(r2.getPosition()));
+        assert(r1.getPosition().equals(r2.getPosition()));
         r2.setPosition(pt(5,5));
-        this.assert(r1.getPosition().equals(r2.getPosition()));
-        this.assert(r1.getPosition().equals(pt(5,5)));
-        this.assert(r1setPositionValue.equals(pt(5,5)));
+        assert(r1.getPosition().equals(r2.getPosition()));
+        assert(r1.getPosition().equals(pt(5,5)));
+        assert(r1setPositionValue.equals(pt(5,5)));
         r1.setPosition(pt(100,100));
-        this.assert(r1.getPosition().equals(r2.getPosition()));
-        this.assert(r2.getPosition().equals(pt(100,100)));
-        this.assert(r2setPositionValue.equals(pt(100,100)));
+        assert(r1.getPosition().equals(r2.getPosition()));
+        assert(r2.getPosition().equals(pt(100,100)));
+        assert(r2setPositionValue.equals(pt(100,100)));
     })
     it('should AutomaticSetterInferenceDeep', function() {
         var solver = new ClSimplexSolver(),
@@ -754,12 +755,12 @@ describe("Propagation", function() {
         }, function() {
             return r1.getPosition().equals(r2.getPosition());;
         });
-        this.assert(r1.getPosition().equals(r2.getPosition()));
+        assert(r1.getPosition().equals(r2.getPosition()));
         r2.setPosition(pt(5,5));
-        this.assert(r1.getPosition().equals(r2.getPosition()));
-        this.assert(r1.getPosition().equals(pt(5,5)));
+        assert(r1.getPosition().equals(r2.getPosition()));
+        assert(r1.getPosition().equals(pt(5,5)));
         
-        this.assert(r1setPositionValue.equals(pt(5,5)));
+        assert(r1setPositionValue.equals(pt(5,5)));
         this.assertEquals(r1setPositionCalls, 2, "too many calls for r1"); // call each setter just once per
         this.assertEquals(r2setPositionCalls, 2, "too many calls for r2"); // once above
     })
@@ -777,9 +778,9 @@ describe("Propagation", function() {
             return obj.a === obj.b;
         });
         
-        this.assert(obj.a === obj.b, "");
+        assert(obj.a === obj.b, "");
         obj.a = pt(10,10);
-        this.assert(obj.a === obj.b, "");
+        assert(obj.a === obj.b, "");
         obj.b = pt(10,10);
     })
     it('should Identity2', function() {
@@ -797,12 +798,12 @@ describe("Propagation", function() {
         }, function() {
             return color.equals(color2);
         });
-        this.assert(color.equals(color2));
+        assert(color.equals(color2));
         color.r = 0.1;
         color2.g = 0.7;
-        this.assert(color.equals(color2));
-        this.assert(color2.r === 0.1);
-        this.assert(color.g === 0.7);
+        assert(color.equals(color2));
+        assert(color2.r === 0.1);
+        assert(color.g === 0.7);
     })
     it('should BoolPropagation', function () {
         var o = {a: true,
@@ -820,15 +821,15 @@ describe("Propagation", function() {
             return o.a == (o.b > 15);
         });
 
-        this.assert(!o.a, "deltablue changed a");
+        assert(!o.a, "deltablue changed a");
         o.b = 20;
-        this.assert(o.a, "deltablue changed a");
+        assert(o.a, "deltablue changed a");
         o.a = false;
-        this.assert(o.b === 15, "deltablue changed b");
+        assert(o.b === 15, "deltablue changed b");
         o.b = 20;
-        this.assert(o.a, "deltablue changed a");
+        assert(o.a, "deltablue changed a");
         o.a = true;
-        this.assert(o.b === 20, "deltablue didn't change b, because the predicate was satisfied");
+        assert(o.b === 20, "deltablue didn't change b, because the predicate was satisfied");
     })
 
     it('should Arithmetic', function() {
@@ -847,16 +848,16 @@ describe("Propagation", function() {
             return o.x + o.y == o.z;
         });
 
-        this.assert(o.x + o.y == o.z);
+        assert(o.x + o.y == o.z);
         o.x = 10;
-        this.assert(o.x == 10);
-        this.assert(o.x + o.y == o.z);
+        assert(o.x == 10);
+        assert(o.x + o.y == o.z);
         o.y = 15;
-        this.assert(o.y == 15);
-        this.assert(o.x + o.y == o.z);
+        assert(o.y == 15);
+        assert(o.x + o.y == o.z);
         o.z = 100;
-        this.assert(o.z == 100);
-        this.assert(o.x + o.y == o.z);
+        assert(o.z == 100);
+        assert(o.x + o.y == o.z);
     })
 
     it('should DeltaBlueUserFunction', function() {
@@ -871,12 +872,12 @@ describe("Propagation", function() {
         constraint.addDBConstraint();
 
         number.assignValue(10);
-        this.assert(number.value === 10, "new value should stick");
-        this.assert(string.value === "10", "new value should propagate");
+        assert(number.value === 10, "new value should stick");
+        assert(string.value === "10", "new value should propagate");
 
         string.assignValue("12");
-        this.assert(number.value === 12, "new value should propagate");
-        this.assert(string.value === "12", "new value should stick");
+        assert(number.value === 12, "new value should propagate");
+        assert(string.value === "12", "new value should stick");
     })
     it('should NoPredicate', function () {
         var db = new DBPlanner(),
@@ -890,16 +891,16 @@ describe("Propagation", function() {
             }
         );
         
-        this.assert(element.color === "blue", "should have changed to blue");
-        this.assert(element.celsius === 50);
+        assert(element.color === "blue", "should have changed to blue");
+        assert(element.celsius === 50);
         
         element.celsius = 70
-        this.assert(element.color === "red", "should have changed to red");
-        this.assert(element.celsius === 70);
+        assert(element.color === "red", "should have changed to red");
+        assert(element.celsius === 70);
         
         element.celsius = 30
-        this.assert(element.color === "blue", "should have changed to blue");
-        this.assert(element.celsius === 30);
+        assert(element.color === "blue", "should have changed to blue");
+        assert(element.celsius === 30);
     })
 });
 
@@ -916,8 +917,8 @@ describe("interaction", function() {
         }, function() {
             return o.b >= 11;
         });
-        this.assert(o.a, "a unchanged");
-        this.assert(o.b === 11, "b fixed");
+        assert(o.a, "a unchanged");
+        assert(o.b === 11, "b fixed");
 
         bbb.always({
             solver: new DBPlanner(),
@@ -930,12 +931,12 @@ describe("interaction", function() {
         }, function () {
             return o.a == (o.b > 15);
         });
-        this.assert(!o.a, "deltablue is downstream from cassowary and has to change a");
-        this.assert(o.b === 11, "deltablue is downstream from cassowary and has to change a");
+        assert(!o.a, "deltablue is downstream from cassowary and has to change a");
+        assert(o.b === 11, "deltablue is downstream from cassowary and has to change a");
 
         o.b = 20;
-        this.assert(o.a, "deltablue changed a");
-        this.assert(o.b === 20, "cassowary updated this");
+        assert(o.a, "deltablue changed a");
+        assert(o.b === 20, "cassowary updated this");
     })
     it('should DynamicRegions2', function () {
         var f = new lively.morphic.Slider(rect(0,0,100,20)),
@@ -999,34 +1000,34 @@ describe("interaction", function() {
         });
 
         f.setValue(0.5);
-        this.assert(c.getValue() == 0.1, "1 Cassowary");
-        this.assert(ct.getTextString() == "10", "1 DeltaBlue");
-        this.assert(ft.getTextString() == "50", "1 DeltaBlue2");
+        assert(c.getValue() == 0.1, "1 Cassowary");
+        assert(ct.getTextString() == "10", "1 DeltaBlue");
+        assert(ft.getTextString() == "50", "1 DeltaBlue2");
         
         c.setValue(0);
-        this.assert(f.getValue() == 0.32, "2 Cassowary");
-        this.assert(ct.getTextString() == "0", "2 DeltaBlue");
-        this.assert(ft.getTextString() == "32", "2 DeltaBlue2");
+        assert(f.getValue() == 0.32, "2 Cassowary");
+        assert(ct.getTextString() == "0", "2 DeltaBlue");
+        assert(ft.getTextString() == "32", "2 DeltaBlue2");
         
         ft.setTextString("50");
-        this.assert(approxEq(f.getValue(), 0.5), "3 DeltaBlue");
-        this.assert(approxEq(c.getValue(), 0.1), "3 Cassowary");
-        this.assert(ct.getTextString() == "10", "3 DeltaBlue2");
+        assert(approxEq(f.getValue(), 0.5), "3 DeltaBlue");
+        assert(approxEq(c.getValue(), 0.1), "3 Cassowary");
+        assert(ct.getTextString() == "10", "3 DeltaBlue2");
         
         ct.setTextString("0");
-        this.assert(approxEq(c.getValue(), 0), "4 DeltaBlue");
-        this.assert(approxEq(f.getValue(), 0.32), "4 Cassowary");
-        this.assert(ft.getTextString() == "32", "4 DeltaBlue2");
+        assert(approxEq(c.getValue(), 0), "4 DeltaBlue");
+        assert(approxEq(f.getValue(), 0.32), "4 Cassowary");
+        assert(ft.getTextString() == "32", "4 DeltaBlue2");
         
         f.setValue(0.5);
-        this.assert(approxEq(c.getValue(), 0.1), "5 Cassowary");
-        this.assert(ct.getTextString() == "10", "5 DeltaBlue");
-        this.assert(ft.getTextString() == "50", "5 DeltaBlue2");
+        assert(approxEq(c.getValue(), 0.1), "5 Cassowary");
+        assert(ct.getTextString() == "10", "5 DeltaBlue");
+        assert(ft.getTextString() == "50", "5 DeltaBlue2");
         
         c.setValue(0);
-        this.assert(approxEq(f.getValue(), 0.32), "6 Cassowary");
-        this.assert(ct.getTextString() == "0", "6 DeltaBlue");
-        this.assert(ft.getTextString() == "32", "6 DeltaBlue2");
+        assert(approxEq(f.getValue(), 0.32), "6 Cassowary");
+        assert(ct.getTextString() == "0", "6 DeltaBlue");
+        assert(ft.getTextString() == "32", "6 DeltaBlue2");
         
         function approxEq(v1, v2) {
             return v1.toFixed(1) === v2.toFixed(1);
@@ -1063,17 +1064,17 @@ describe("interaction", function() {
         });
         
         a.x = 10;
-        this.assert(a.y === 10, "1) Cassowary did not kick in");
-        this.assert(b.str === "10.0", "1) DeltaBlue did not kick in");
+        assert(a.y === 10, "1) Cassowary did not kick in");
+        assert(b.str === "10.0", "1) DeltaBlue did not kick in");
         
         a.y = 5;
-        this.assert(a.x === 5, "2) Cassowary did not kick in");
-        this.assert(b.str === "5.0", "2) DeltaBlue did not kick in");
+        assert(a.x === 5, "2) Cassowary did not kick in");
+        assert(b.str === "5.0", "2) DeltaBlue did not kick in");
         
         b.str = "7.5";
-        this.assert(a.x == 7.5, "3a) Cassowary did not kick in");
-        this.assert(a.y == 7.5, "3b) Cassowary did not kick in");
-        this.assert(b.str == "7.5", "3) DeltaBlue did not kick in");
+        assert(a.x == 7.5, "3a) Cassowary did not kick in");
+        assert(a.y == 7.5, "3b) Cassowary did not kick in");
+        assert(b.str == "7.5", "3) DeltaBlue did not kick in");
     })
     it('should InteractionAssignmentIndirect', function () {
         var o = {a: true,
@@ -1088,8 +1089,8 @@ describe("interaction", function() {
         }, function() {
             return o.b + o.c >= 20;
         });
-        this.assert(o.a, "a unchanged");
-        this.assert(o.b === 15, "b fixed " + o.b);
+        assert(o.a, "a unchanged");
+        assert(o.b === 15, "b fixed " + o.b);
 
         bbb.always({
             solver: new DBPlanner(),
@@ -1102,12 +1103,12 @@ describe("interaction", function() {
         }, function () {
             return o.a == (o.b > 15);
         });
-        this.assert(!o.a, "deltablue is downstream from cassowary and has to change a to " + o.a);
-        this.assert(o.b === 15, "deltablue is downstream from cassowary and has to change a");
+        assert(!o.a, "deltablue is downstream from cassowary and has to change a to " + o.a);
+        assert(o.b === 15, "deltablue is downstream from cassowary and has to change a");
 
         o.c = 1;
-        this.assert(o.a, "deltablue changed a");
-        this.assert(o.b === 19, "cassowary updated this");
+        assert(o.a, "deltablue changed a");
+        assert(o.b === 19, "cassowary updated this");
     })
     it('should DynamicRegionsOnPoints', function() {
         var c = new ClSimplexSolver(),
@@ -1130,14 +1131,14 @@ describe("interaction", function() {
             return e2.getPosition().equals(e1.getPosition().addPt(e3.getPosition()).scaleBy(.5));;
         });
 
-        this.assert(e1.getPosition().equals(pt(0,0)), "1a " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(10,10)), "2a " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3a " + e3.getPosition());
+        assert(e1.getPosition().equals(pt(0,0)), "1a " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(10,10)), "2a " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3a " + e3.getPosition());
 
         e1.setPosition(pt(5,5));
-        this.assert(e1.getPosition().equals(pt(5,5)), "1b " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(12.5,12.5)), "2b " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3b " + e3.getPosition());
+        assert(e1.getPosition().equals(pt(5,5)), "1b " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(12.5,12.5)), "2b " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3b " + e3.getPosition());
 
         bbb.always({
             solver: d,
@@ -1151,22 +1152,22 @@ describe("interaction", function() {
             return e1.getPosition().equals(e4.getPosition());;
         });
 
-        this.assert(e1.getPosition().equals(pt(20,20)), "1c " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(20,20)), "2c " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3c " + e3.getPosition());
-        this.assert(e4.getPosition().equals(pt(20,20)), "4c " + e4.getPosition());
+        assert(e1.getPosition().equals(pt(20,20)), "1c " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(20,20)), "2c " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3c " + e3.getPosition());
+        assert(e4.getPosition().equals(pt(20,20)), "4c " + e4.getPosition());
 
         e4.setPosition(pt(5,5));
-        this.assert(e1.getPosition().equals(pt(5,5)), "1d " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(12.5,12.5)), "2d " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3d " + e3.getPosition());
-        this.assert(e4.getPosition().equals(pt(5,5)), "4d " + e4.getPosition());
+        assert(e1.getPosition().equals(pt(5,5)), "1d " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(12.5,12.5)), "2d " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3d " + e3.getPosition());
+        assert(e4.getPosition().equals(pt(5,5)), "4d " + e4.getPosition());
 
         e1.setPosition(pt(0,0));
-        this.assert(e1.getPosition().equals(pt(0,0)), "1e " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(10,10)), "2e " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3e " + e3.getPosition());
-        this.assert(e4.getPosition().equals(pt(0,0)), "4e " + e4.getPosition());
+        assert(e1.getPosition().equals(pt(0,0)), "1e " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(10,10)), "2e " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3e " + e3.getPosition());
+        assert(e4.getPosition().equals(pt(0,0)), "4e " + e4.getPosition());
     })
 
     it('should DynamicRegionsOnPoints2', function() {
@@ -1190,14 +1191,14 @@ describe("interaction", function() {
             return e2.getPosition().equals(e1.getPosition().addPt(e3.getPosition()).scaleBy(.5));;
         });
 
-        this.assert(e1.getPosition().equals(pt(0,0)), "1a " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(10,10)), "2a " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3a " + e3.getPosition());
+        assert(e1.getPosition().equals(pt(0,0)), "1a " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(10,10)), "2a " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3a " + e3.getPosition());
 
         e1.setPosition(pt(5,5));
-        this.assert(e1.getPosition().equals(pt(5,5)), "1b " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(12.5,12.5)), "2b " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3b " + e3.getPosition());
+        assert(e1.getPosition().equals(pt(5,5)), "1b " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(12.5,12.5)), "2b " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3b " + e3.getPosition());
 
         bbb.always({
             solver: c2,
@@ -1210,22 +1211,22 @@ describe("interaction", function() {
             return e1.getPosition().equals(e4.getPosition());;
         });
 
-        this.assert(e1.getPosition().equals(pt(5,5)), "1c " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(12.5,12.5)), "2c " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3c " + e3.getPosition());
-        this.assert(e4.getPosition().equals(pt(5,5)), "4c " + e4.getPosition());
+        assert(e1.getPosition().equals(pt(5,5)), "1c " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(12.5,12.5)), "2c " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3c " + e3.getPosition());
+        assert(e4.getPosition().equals(pt(5,5)), "4c " + e4.getPosition());
 
         e4.setPosition(pt(5,5));
-        this.assert(e1.getPosition().equals(pt(5,5)), "1d " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(12.5,12.5)), "2d " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3d " + e3.getPosition());
-        this.assert(e4.getPosition().equals(pt(5,5)), "4d " + e4.getPosition());
+        assert(e1.getPosition().equals(pt(5,5)), "1d " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(12.5,12.5)), "2d " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3d " + e3.getPosition());
+        assert(e4.getPosition().equals(pt(5,5)), "4d " + e4.getPosition());
 
         e1.setPosition(pt(0,0));
-        this.assert(e1.getPosition().equals(pt(0,0)), "1e " + e1.getPosition());
-        this.assert(e2.getPosition().equals(pt(10,10)), "2e " + e2.getPosition());
-        this.assert(e3.getPosition().equals(pt(20,20)), "3e " + e3.getPosition());
-        this.assert(e4.getPosition().equals(pt(0,0)), "4e " + e4.getPosition());
+        assert(e1.getPosition().equals(pt(0,0)), "1e " + e1.getPosition());
+        assert(e2.getPosition().equals(pt(10,10)), "2e " + e2.getPosition());
+        assert(e3.getPosition().equals(pt(20,20)), "3e " + e3.getPosition());
+        assert(e4.getPosition().equals(pt(0,0)), "4e " + e4.getPosition());
     })
 
     it('should InteractingSolvers_FailOnConstraintConstruction', function() {
@@ -1257,8 +1258,8 @@ describe("interaction", function() {
             return pt.x == 100;
         });
 
-        this.assert(pt.x == 100, "constraint construction did not modified the variable, pt.x: " + pt.x);
-        this.assert(pt.x == pt.y, "delta blue constraint not fulfilled, pt.x: " + pt.x + ", pt.y: " + pt.y);
+        assert(pt.x == 100, "constraint construction did not modified the variable, pt.x: " + pt.x);
+        assert(pt.x == pt.y, "delta blue constraint not fulfilled, pt.x: " + pt.x + ", pt.y: " + pt.y);
     })
     it('should ConstraintConstructionTwoSolvers2', function () {
         var pt = {x: 15, y: 2},
@@ -1275,7 +1276,7 @@ describe("interaction", function() {
                 }, function() {
                         return pt.y == 2;;
                 });
-                this.assert(pt.y == 2, "constraint not satisfied after constraint construction (1), pt.y: " + pt.y);
+                assert(pt.y == 2, "constraint not satisfied after constraint construction (1), pt.y: " + pt.y);
 
                 bbb.always({
                         solver: s1,
@@ -1285,8 +1286,8 @@ describe("interaction", function() {
                 }, function() {
                         return pt.y == pt.x;;
                 });
-                this.assert(pt.x == pt.y, "constraint not satisfied after constraint construction (2)");
-                this.assert(pt.y == 2, "constraint not satisfied after constraint construction (3), pt.y: " + pt.y);
+                assert(pt.x == pt.y, "constraint not satisfied after constraint construction (2)");
+                assert(pt.y == 2, "constraint not satisfied after constraint construction (3), pt.y: " + pt.y);
     })
 
     it('should ConstraintConstructionTwoSolvers', function () {
@@ -1305,7 +1306,7 @@ describe("interaction", function() {
                         return pt.y == pt.x;;
                 });
                 console.log(pt.x, pt.y);
-                this.assert(pt.x == pt.y, "constraint not satisfied after constraint construction (1)");
+                assert(pt.x == pt.y, "constraint not satisfied after constraint construction (1)");
 
                 bbb.always({
                         solver: s2,
@@ -1316,8 +1317,8 @@ describe("interaction", function() {
                         return pt.y == 2;;
                 });
                 console.log(pt.x, pt.y);
-                this.assert(pt.x == pt.y, "constraint not satisfied after constraint construction (2)");
-                this.assert(pt.y == 2, "constraint not satisfied after constraint construction (3), pt.y: " + pt.y);
+                assert(pt.x == pt.y, "constraint not satisfied after constraint construction (2)");
+                assert(pt.y == 2, "constraint not satisfied after constraint construction (3), pt.y: " + pt.y);
     })
 
     xit("test edit", function() {
@@ -1336,27 +1337,27 @@ describe("interaction", function() {
             return obj.b == obj.c;
         });
         
-        this.assert(obj.a === obj.b);
-        this.assert(obj.c == obj.b);
-        this.assert(obj.c !== obj.b);
+        assert(obj.a === obj.b);
+        assert(obj.c == obj.b);
+        assert(obj.c !== obj.b);
         
         obj.a = 10;
-        this.assert(obj.a === 10);
-        this.assert(obj.a === obj.b);
-        this.assert(obj.c == obj.b);
-        this.assert(obj.c !== obj.b);
+        assert(obj.a === 10);
+        assert(obj.a === obj.b);
+        assert(obj.c == obj.b);
+        assert(obj.c !== obj.b);
         
         var cb = bbb.edit(obj, ["b"]);
         cb([5]);
-        this.assert(obj.b === 5);
-        this.assert(obj.a === obj.b);
-        this.assert(obj.c == obj.b);
-        this.assert(obj.c !== obj.b);
+        assert(obj.b === 5);
+        assert(obj.a === obj.b);
+        assert(obj.c == obj.b);
+        assert(obj.c !== obj.b);
         cb([11])
-        this.assert(obj.b === 11);
-        this.assert(obj.a === obj.b);
-        this.assert(obj.c == obj.b);
-        this.assert(obj.c !== obj.b);
+        assert(obj.b === 11);
+        assert(obj.a === obj.b);
+        assert(obj.c == obj.b);
+        assert(obj.c !== obj.b);
     })
 });
 
@@ -1466,11 +1467,11 @@ describe("CSP", function() {
             return man.shirt !== man.pants;;
         });
 
-        this.assert(man.hat === "brown", "hat's domain is restricted to 'brown' only");
-        this.assert(man.shoes === "brown", "shoes have to be 'brown'");
-        this.assert(man.shirt === "blue" || man.shirt === "white", "shirt has to be 'blue' or 'white'");
-        this.assert(man.shirt !== man.pants, "shirt and pants must not have the same color");
-        this.assert(man.pants === "black" || man.pants === "blue" || man.pants === "white", "pants should be 'black', 'blue' or 'white'");
+        assert(man.hat === "brown", "hat's domain is restricted to 'brown' only");
+        assert(man.shoes === "brown", "shoes have to be 'brown'");
+        assert(man.shirt === "blue" || man.shirt === "white", "shirt has to be 'blue' or 'white'");
+        assert(man.shirt !== man.pants, "shirt and pants must not have the same color");
+        assert(man.pants === "black" || man.pants === "blue" || man.pants === "white", "pants should be 'black', 'blue' or 'white'");
     })
     it('should ForceToDomain', function () {
         var solver = bbb.defaultSolver = new csp.Solver();
@@ -1488,7 +1489,7 @@ describe("CSP", function() {
             return pt.x.is in [1, 2, 3];;
         });
 
-        this.assert([1, 2, 3].indexOf(pt.x) > -1, "x is not in its domain [1, 2, 3], but " + pt.x);
+        assert([1, 2, 3].indexOf(pt.x) > -1, "x is not in its domain [1, 2, 3], but " + pt.x);
     })
     it('should RemainIfInDomain', function () {
         var solver = bbb.defaultSolver = new csp.Solver();
@@ -1506,7 +1507,7 @@ describe("CSP", function() {
             return pt.x.is in [4, 5, 6];;
         });
 
-        this.assert(pt.x === 5, "x does not stay at 5, but probably raims in its domain [4, 5, 6]; x: " + pt.x);
+        assert(pt.x === 5, "x does not stay at 5, but probably raims in its domain [4, 5, 6]; x: " + pt.x);
     })
     it('should ErrorOnEmptyDomain', function () {
         var solver = bbb.defaultSolver = new csp.Solver(),
@@ -1530,7 +1531,7 @@ describe("CSP", function() {
             errorThrown = true;
         }
 
-        this.assert(errorThrown, "no error was thrown on empty domain");
+        assert(errorThrown, "no error was thrown on empty domain");
     })
     it('should Assignment', function () {
         var solver = bbb.defaultSolver = new csp.Solver(),
@@ -1574,12 +1575,12 @@ describe("CSP", function() {
         });
     
         pt.x = 8;
-        this.assert(pt.x === 8, "assignment 'x = 8' was not successful; x: " + pt.x);
-        this.assert(pt.y === 12, "constraint 'x + 4 == y' not satisfied; y: " + pt.y);
+        assert(pt.x === 8, "assignment 'x = 8' was not successful; x: " + pt.x);
+        assert(pt.y === 12, "constraint 'x + 4 == y' not satisfied; y: " + pt.y);
         
         pt.y = 7;
-        this.assert(pt.y === 7, "assignment 'y = 7' was not successful; y: " + pt.y);
-        this.assert(pt.x === 3, "constraint 'x + 4 == y' not satisfied; x: " + pt.x);
+        assert(pt.y === 7, "assignment 'y = 7' was not successful; y: " + pt.y);
+        assert(pt.x === 3, "constraint 'x + 4 == y' not satisfied; x: " + pt.x);
     })
     it('should Assignment2', function () {
         var solver = bbb.defaultSolver = new csp.Solver(),
@@ -1622,11 +1623,11 @@ describe("CSP", function() {
             return pt.x + pt.y >= 10;;
         });
     
-        this.assert(pt.x + pt.y >= 10, "constraint 'pt.x + pt.y >= 10' does not hold for x: "+ pt.x+", y: " + pt.y);
+        assert(pt.x + pt.y >= 10, "constraint 'pt.x + pt.y >= 10' does not hold for x: "+ pt.x+", y: " + pt.y);
 
         pt.y = 4;
-        this.assert(pt.y === 4, "assignment 'y = 4' was not successful; y: " + pt.y);
-        this.assert(pt.x + pt.y >= 10, "constraint 'pt.x + pt.y >= 10' does not hold for x: "+ pt.x+", y: " + pt.y);
+        assert(pt.y === 4, "assignment 'y = 4' was not successful; y: " + pt.y);
+        assert(pt.x + pt.y >= 10, "constraint 'pt.x + pt.y >= 10' does not hold for x: "+ pt.x+", y: " + pt.y);
     })
     it('should FailingAssignmentOnDomain', function () {
         var solver = bbb.defaultSolver = new csp.Solver(),
@@ -1651,7 +1652,7 @@ describe("CSP", function() {
             errorThrown = true;
         }
     
-        this.assert(errorThrown, "no error was thrown on new value x = 0 with domain [1, 2, 3]; x: " + pt.x);
+        assert(errorThrown, "no error was thrown on new value x = 0 with domain [1, 2, 3]; x: " + pt.x);
     })
     it('should FailingAssignment', function () {
         // try x = 0 with constraint x > 4
@@ -1707,8 +1708,8 @@ describe("CSP", function() {
             return pt.x + pt.y === 10;;
         });
 
-        this.assert(pt.x > 4, "constraint 'pt.x  > 4' does not hold for x: "+ pt.x);
-        this.assert(pt.x + pt.y === 10, "constraint 'pt.x + pt.y === 10' does not hold for x: "+ pt.x + ", y: " + pt.y);
+        assert(pt.x > 4, "constraint 'pt.x  > 4' does not hold for x: "+ pt.x);
+        assert(pt.x + pt.y === 10, "constraint 'pt.x + pt.y === 10' does not hold for x: "+ pt.x + ", y: " + pt.y);
     
         var oldValueX = pt.x;
         var oldValueY = pt.y;
@@ -1718,9 +1719,9 @@ describe("CSP", function() {
         } catch (e) {
             errorThrown = true;
         }
-        this.assert(errorThrown, "no error was thrown on new value y = 7 with constraints 'pt.x + pt.y === 10' and 'pt.x  > 4'; x: " + pt.x + ", y: " + pt.y);
-        this.assert(pt.y === oldValueY, "old value of y not restored after failed assignment; currentY: " + pt.y + ", oldY: " + oldValueY);
-        this.assert(pt.x === oldValueX, "old value of x not restored after failed assignment; currentX: " + pt.x + ", oldX: " + oldValueX);
+        assert(errorThrown, "no error was thrown on new value y = 7 with constraints 'pt.x + pt.y === 10' and 'pt.x  > 4'; x: " + pt.x + ", y: " + pt.y);
+        assert(pt.y === oldValueY, "old value of y not restored after failed assignment; currentY: " + pt.y + ", oldY: " + oldValueY);
+        assert(pt.x === oldValueX, "old value of x not restored after failed assignment; currentX: " + pt.x + ", oldX: " + oldValueX);
     })
     it('should UnsatisfiableConstraint', function () {
         var solver = bbb.defaultSolver = new csp.Solver(),
@@ -1755,7 +1756,7 @@ describe("CSP", function() {
             errorThrown = true;
         }
     
-        this.assert(errorThrown, "no error was thrown on unsatisfiable constraint");
+        assert(errorThrown, "no error was thrown on unsatisfiable constraint");
     })
 });
 
@@ -1792,7 +1793,7 @@ describe("on error", function() {
             return obj.a == 10;;
         });
     
-        this.assert(onErrorCalled, "onError was not called; obj.a: " + obj.a);
+        assert(onErrorCalled, "onError was not called; obj.a: " + obj.a);
     })
     it('should OnErrorCassowaryAssignment', function () {
         var obj = {a: 0},
@@ -1815,7 +1816,7 @@ describe("on error", function() {
 
         obj.a = 10;
         
-        this.assert(onErrorCalled, "onError was not called; obj.a: " + obj.a);
+        assert(onErrorCalled, "onError was not called; obj.a: " + obj.a);
     })
     xit("OnErrorDeltaBlueConstraintConstruction", function () {
         var obj = {int: 17, str: "17"},
@@ -1852,7 +1853,7 @@ describe("on error", function() {
 
         obj.str = "10";
         
-        this.assert(onErrorCalled, "onError was not called; obj.a: " + obj.a);
+        assert(onErrorCalled, "onError was not called; obj.a: " + obj.a);
     })
     it('should OnErrorCSPConstraintConstruction', function () {
         var pt = {x: 5, y: 2},
@@ -1887,8 +1888,8 @@ describe("on error", function() {
             return pt.x >= 5;;
         });
     
-        this.assert(onErrorCalled, "onError was not called");
-        this.assert(errorMessage === "constraint cannot be satisfied", "an unexpected error was thrown, message: " + errorMessage);
+        assert(onErrorCalled, "onError was not called");
+        assert(errorMessage === "constraint cannot be satisfied", "an unexpected error was thrown, message: " + errorMessage);
     })
     it('should OnErrorCSPAssignment', function () {
         var pt = {x: 1, y: 2},
@@ -1910,12 +1911,12 @@ describe("on error", function() {
             return pt.x.is in [1, 2, 3];;
         });
 
-        this.assert(!onErrorCalled, "onError called unexpectedly");
+        assert(!onErrorCalled, "onError called unexpectedly");
 
         pt.x = 5;
     
-        this.assert(onErrorCalled, "onError was not called");
-        this.assert(errorMessage === "assigned value is not contained in domain", "an unexpected error was thrown, message: " + errorMessage);
+        assert(onErrorCalled, "onError was not called");
+        assert(errorMessage === "assigned value is not contained in domain", "an unexpected error was thrown, message: " + errorMessage);
     })
     it('should OnErrorRelaxConstraintConstruction', function () {
         var pt = {x: 5},
@@ -1950,8 +1951,8 @@ describe("on error", function() {
             return pt.x >= 20;;
         });
     
-        this.assert(onErrorCalled, "onError was not called");
-        this.assert(errorMessage === "Could not satisfy constraint", "an unexpected error was thrown, message: " + errorMessage);
+        assert(onErrorCalled, "onError was not called");
+        assert(errorMessage === "Could not satisfy constraint", "an unexpected error was thrown, message: " + errorMessage);
     })
 });
 
@@ -2011,7 +2012,7 @@ describe('AutomaticSolverSelectionDetailsTest', function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(constraint.comparisonMetrics.squaredChangeDistance() ==
+        assert(constraint.comparisonMetrics.squaredChangeDistance() ==
                     (obj.a - 2) * (obj.a - 2) + (obj.b - 3) * (obj.b - 3),
             "squaredChangeDistance should be the sum of the squared distances");
     })
@@ -2032,7 +2033,7 @@ describe('AutomaticSolverSelectionDetailsTest', function() {
             return obj.a + obj.b == 3;
         });
         // then: assert that the faster solver was chosen
-        this.assert(constraint.solver === bbb.defaultSolvers[0], 'The faster solver should have been chosen');
+        assert(constraint.solver === bbb.defaultSolvers[0], 'The faster solver should have been chosen');
     })
 
     it('should ChoiceWithTimeOverDistance2', function() {
@@ -2050,7 +2051,7 @@ describe('AutomaticSolverSelectionDetailsTest', function() {
             return obj.a + obj.b == 3;
         });
         // then: assert that the faster solver was chosen
-        this.assert(constraint.solver === bbb.defaultSolvers[1], 'The faster solver should have been chosen');
+        assert(constraint.solver === bbb.defaultSolvers[1], 'The faster solver should have been chosen');
     })
 
     it('should ChoiceWithDistanceOverTime1', function() {
@@ -2085,7 +2086,7 @@ describe('AutomaticSolverSelectionDetailsTest', function() {
             return obj.a + obj.b == 3;
         });
         // then
-        this.assert(constraint.solver === bbb.defaultSolvers[0], 'The solver with the smaller distance should have been chosen (albeit slower)');
+        assert(constraint.solver === bbb.defaultSolvers[0], 'The solver with the smaller distance should have been chosen (albeit slower)');
     })
 
     it('should ChoiceWithNumberOfChangedVariablesOverTime1', function() {
@@ -2114,7 +2115,7 @@ describe('AutomaticSolverSelectionDetailsTest', function() {
             return obj.a + obj.b == 3;
         });
         // then
-        this.assert(constraint.solver === bbb.defaultSolvers[0], 'The solver with the smaller distance should have been chosen (albeit slower)');
+        assert(constraint.solver === bbb.defaultSolvers[0], 'The solver with the smaller distance should have been chosen (albeit slower)');
     })
 
     it('should ChoiceWithNumberOfChangedVariablesOverTime2', function() {
@@ -2143,7 +2144,7 @@ describe('AutomaticSolverSelectionDetailsTest', function() {
             return obj.a + obj.b == 3;
         });
         // then
-        this.assert(constraint.solver === bbb.defaultSolvers[1], 'The solver with the smaller distance should have been chosen (albeit slower)');
+        assert(constraint.solver === bbb.defaultSolvers[1], 'The solver with the smaller distance should have been chosen (albeit slower)');
     })
 
     it('should ChoiceWithDistanceOverTime2', function() {
@@ -2178,7 +2179,7 @@ describe('AutomaticSolverSelectionDetailsTest', function() {
             return obj.a + obj.b == 3;
         });
         // then
-        this.assert(constraint.solver === bbb.defaultSolvers[1], 'The solver with the smaller distance should have been chosen (albeit slower)');
+        assert(constraint.solver === bbb.defaultSolvers[1], 'The solver with the smaller distance should have been chosen (albeit slower)');
     })
 
     it('should StringsAndSquaredChangeDistance', function() {
@@ -2193,7 +2194,7 @@ describe('AutomaticSolverSelectionDetailsTest', function() {
         }, function () {
             return subject.hat === subject.shoes;
         });
-        this.assert(subject.hat === subject.shoes);
+        assert(subject.hat === subject.shoes);
     })
 });
 
@@ -2220,7 +2221,7 @@ describe('AutomaticSolverSelectionTest', function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a working solution");
+        assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a working solution");
     })
 
     it('should SuggestingNewValues', function () {
@@ -2232,15 +2233,15 @@ describe('AutomaticSolverSelectionTest', function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a " +
+        assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a " +
                     "working solution");
         obj.a = 1;
-        this.assert(obj.a === 1, "Assignment should be honored");
-        this.assert(obj.a + obj.b == 3, "Constraint should have adapted the other " +
+        assert(obj.a === 1, "Assignment should be honored");
+        assert(obj.a + obj.b == 3, "Constraint should have adapted the other " +
                     "variable to fulfill the constraint");
         obj.b = 3;
-        this.assert(obj.b === 3, "Assignment should be honored");
-        this.assert(obj.a + obj.b == 3, "Constraint should have adapted the other " +
+        assert(obj.b === 3, "Assignment should be honored");
+        assert(obj.a + obj.b == 3, "Constraint should have adapted the other " +
                     "variable to fulfill the constraint");
     })
 
@@ -2254,16 +2255,16 @@ describe('AutomaticSolverSelectionTest', function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a " +
+        assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a " +
                     "working solution");
         var oldA = obj.a;
         obj.a += 1;
-        this.assert(obj.a === oldA + 1, "Assignment should be honored");
-        this.assert(obj.a + obj.b == 3, "Constraint should have adapted the other " +
+        assert(obj.a === oldA + 1, "Assignment should be honored");
+        assert(obj.a + obj.b == 3, "Constraint should have adapted the other " +
                     "variable to fulfill the constraint");
         obj.a += 1;
-        this.assert(obj.a === oldA + 2, "Assignment should be honored");
-        this.assert(obj.a + obj.b == 3, "Constraint should have adapted the other " +
+        assert(obj.a === oldA + 2, "Assignment should be honored");
+        assert(obj.a + obj.b == 3, "Constraint should have adapted the other " +
                     "variable to fulfill the constraint");
     })
 
@@ -2279,7 +2280,7 @@ describe('AutomaticSolverSelectionTest', function() {
         });
         for (var i = 0; i < constraint.constraintvariables.length; i++) {
             var constraintVariable = constraint.constraintvariables[i];
-            this.assert(constraintVariable.definingConstraint === constraint);
+            assert(constraintVariable.definingConstraint === constraint);
         }
     })
 
@@ -2298,11 +2299,11 @@ describe('AutomaticSolverSelectionTest', function() {
             return o.string == o.number + "";
         });
 
-        this.assert(o.string === o.number + "");
+        assert(o.string === o.number + "");
         o.string = "1"
-        this.assert(o.number === 1);
+        assert(o.number === 1);
         o.number = 12
-        this.assert(o.string === "12");
+        assert(o.string === "12");
     })
     it('should BacktalkPaperExampleWithAutomaticSolverSelection', function () {
         var man = {
@@ -2400,11 +2401,11 @@ describe('AutomaticSolverSelectionTest', function() {
             return man.shirt !== man.pants;;
         });
 
-        this.assert(man.hat === "brown", "hat's domain is restricted to 'brown' only");
-        this.assert(man.shoes === "brown", "shoes have to be 'brown'");
-        this.assert(man.shirt === "blue" || man.shirt === "white", "shirt has to be 'blue' or 'white'");
-        this.assert(man.shirt !== man.pants, "shirt and pants must not have the same color");
-        this.assert(man.pants === "black" || man.pants === "blue" || man.pants === "white", "pants should be 'black', 'blue' or 'white'");
+        assert(man.hat === "brown", "hat's domain is restricted to 'brown' only");
+        assert(man.shoes === "brown", "shoes have to be 'brown'");
+        assert(man.shirt === "blue" || man.shirt === "white", "shirt has to be 'blue' or 'white'");
+        assert(man.shirt !== man.pants, "shirt and pants must not have the same color");
+        assert(man.pants === "black" || man.pants === "blue" || man.pants === "white", "pants should be 'black', 'blue' or 'white'");
     })
     it('should FilteringByPriority', function () {
         var testCase = this;
@@ -2428,8 +2429,8 @@ describe('AutomaticSolverSelectionTest', function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(!this._askedDummySolver, "should not have asked solver to try");
-        this.assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a working solution");
+        assert(!this._askedDummySolver, "should not have asked solver to try");
+        assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a working solution");
     })
     it('should FilteringByMethods', function () {
         var testCase = this;
@@ -2458,12 +2459,12 @@ describe('AutomaticSolverSelectionTest', function() {
             return o.string == o.number + "";
         });
 
-        this.assert(!this._askedDummySolver, "should not have asked solver to try");
-        this.assert(o.string === o.number + "");
+        assert(!this._askedDummySolver, "should not have asked solver to try");
+        assert(o.string === o.number + "");
         o.string = "1"
-        this.assert(o.number === 1);
+        assert(o.number === 1);
         o.number = 12
-        this.assert(o.string === "12");
+        assert(o.string === "12");
     })
     it('should FilteringByDataTypeOnSlots', function () {
         var testCase = this;
@@ -2486,8 +2487,8 @@ describe('AutomaticSolverSelectionTest', function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(!this._askedDummySolver, "should not have asked solver to try");
-        this.assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a working solution");
+        assert(!this._askedDummySolver, "should not have asked solver to try");
+        assert(obj.a + obj.b == 3, "Automatic solver selection did not produce a working solution");
     })
     it('should FilteringByDataTypeOnCalls', function () {
         var testCase = this;
@@ -2513,8 +2514,8 @@ describe('AutomaticSolverSelectionTest', function() {
         }, function() {
             return obj.get() == inc(obj[0]);
         });
-        this.assert(!this._askedDummySolver, "should not have asked solver to try");
-        this.assert(obj.get() == inc(obj[0]), "Automatic solver selection did not produce a working solution");
+        assert(!this._askedDummySolver, "should not have asked solver to try");
+        assert(obj.get() == inc(obj[0]), "Automatic solver selection did not produce a working solution");
     })
     it('should FilteringByFiniteDomains', function () {
         var testCase = this;
@@ -2541,8 +2542,8 @@ describe('AutomaticSolverSelectionTest', function() {
         }, function() {
             return man.shoes.is in ["brown", "black"];;
         });
-        this.assert(!this._askedDummySolver, "should not have asked solver to try");
-        this.assert(man.shoes === "brown" || man.shoes === "black", "Automatic solver selection did not produce a working solution");
+        assert(!this._askedDummySolver, "should not have asked solver to try");
+        assert(man.shoes === "brown" || man.shoes === "black", "Automatic solver selection did not produce a working solution");
     })
     it('should ReevaluationAfterDefaultNumberOfSolvingOperations', function() {
         preparePatchedSolvers();
@@ -2557,17 +2558,17 @@ describe('AutomaticSolverSelectionTest', function() {
         }, function() {
             return obj.a + obj.b == 3;
         });
-        this.assert(constraint.solver === bbb.defaultSolvers[1],
+        assert(constraint.solver === bbb.defaultSolvers[1],
                     "the initially faster solver should have been chosen");
         bbb.defaultSolvers[0].forcedDelay = 0;
         bbb.defaultSolvers[1].forcedDelay = 10;
         for (var i = 0; i < 2; i++) {
             obj.a += 1;
         }
-        this.assert(constraint.solver === bbb.defaultSolvers[0],
+        assert(constraint.solver === bbb.defaultSolvers[0],
                     "the solver should have changed to the new faster solver");
         bbb.defaultSolvers[1].forcedSolveAction = function() {
-            this.assert(false, 'The slower solver should not be called anymore.');
+            assert(false, 'The slower solver should not be called anymore.');
         }.bind(this);
         constraint.reevaluationInterval = 1000;
         obj.a += 1;
@@ -2598,16 +2599,16 @@ describe('AutomaticSolverSelectionTest', function() {
         for (var i = 0; i < 2; i++) {
             obj.a += 1;
         }
-        this.assert(constraint.solver.solveCalls >= 2, 'Chosen solver should have ' +
+        assert(constraint.solver.solveCalls >= 2, 'Chosen solver should have ' +
                     'been called two times');
-        this.assert(otherSolver.solveCalls === 0, 'Unselected solver should ' +
+        assert(otherSolver.solveCalls === 0, 'Unselected solver should ' +
                     'not have been called');
         constraint.solver.solveCalls = 0;
         otherSolver.solveCalls = 0;
         obj.a += 1; // should cause reevaluation
-        this.assert(constraint.solver.solveCalls >= 1, 'Chosen solver should have ' +
+        assert(constraint.solver.solveCalls >= 1, 'Chosen solver should have ' +
                     'been called for reevaluation');
-        this.assert(otherSolver.solveCalls >= 1, 'Unselected solver should ' +
+        assert(otherSolver.solveCalls >= 1, 'Unselected solver should ' +
                     'have been called for reevaluation');
         // in case the solver has changed, update our otherSolver variable
         // (it should not, but we do not wish to assert that here)
@@ -2618,14 +2619,14 @@ describe('AutomaticSolverSelectionTest', function() {
         for (var i = 0; i < 2; i++) {
             obj.a += 1;
         }
-        this.assert(constraint.solver.solveCalls >= 2, 'Chosen solver should be called');
-        this.assert(otherSolver.solveCalls === 0, 'Unchosen solver should not be called');
+        assert(constraint.solver.solveCalls >= 2, 'Chosen solver should be called');
+        assert(otherSolver.solveCalls === 0, 'Unchosen solver should not be called');
         constraint.solver.solveCalls = 0;
         otherSolver.solveCalls = 0;
         obj.a += 1; // should cause reevaluation
-        this.assert(constraint.solver.solveCalls >= 1, 'Chosen solver should have ' +
+        assert(constraint.solver.solveCalls >= 1, 'Chosen solver should have ' +
                     'been called for reevaluation');
-        this.assert(otherSolver.solveCalls >= 1, 'Unselected solver should ' +
+        assert(otherSolver.solveCalls >= 1, 'Unselected solver should ' +
                     'have been called for reevaluation');
     })
 });
