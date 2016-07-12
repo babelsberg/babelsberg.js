@@ -1,4 +1,4 @@
-import * as deltablue from '../deltablue/deltablue.js';
+import * as deltablue from './deltablue.js';
 import Cassowary from './bbb-rhea.js';
 
 export class ClassicECJIT {
