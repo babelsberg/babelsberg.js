@@ -1479,9 +1479,10 @@ export default class Interpreter {
     while (true) {
       if (obj.isInitialized === false) {
         // lazy wrapping
-        for (var key in nativeObj) {
-          this.setProperty(pseudoObject, key,
-                            this.createPseudoObject(nativeObj[key]));
+        let nativeObject = obj.data;
+        for (var key in nativeObject) {
+          this.setProperty(obj, key,
+                            this.createPseudoObject(nativeObject[key]));
         }
         obj.isInitialized = true;
       }
