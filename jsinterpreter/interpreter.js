@@ -32,7 +32,7 @@
  * @constructor
  */
 
-
+import * as acorn from './acorn.es.js';
 
 export default class Interpreter {
   constructor(code, opt_initFunc) {
