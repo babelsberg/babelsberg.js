@@ -1691,6 +1691,13 @@ export default class Interpreter {
       }
       scope = scope.parentScope;
     }
+    /**
+     * Lazy lookup for global variables
+     */
+    // TODO: support other js environments like service worker and node by checking what the global scope is
+    if(nameStr in window) {
+      return this.createPseudoObject(window[nameStr]);
+    }
     console.log(nameStr, this);
     this.throwException(this.REFERENCE_ERROR, nameStr + ' is not defined');
     return this.UNDEFINED;
